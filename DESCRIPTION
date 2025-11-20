@@ -27,3 +27,5 @@ Imports:
     surveyPrev
 RoxygenNote: 7.3.3
 Roxygen: list(markdown = TRUE)
+URL: https://github.com/SZ-yang/MICSprev
+BugReports: https://github.com/SZ-yang/MICSprev/issues
