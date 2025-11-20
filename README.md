@@ -18,7 +18,7 @@ The package provides:
 ```r
 remotes::install_github("SZ-yang/MICSprev")
 library(MICSprev)
-
+```
 
 ## Main Functions
 
