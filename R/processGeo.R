@@ -76,15 +76,33 @@ build_geo_mics <- function(
     stop("GPS file must contain HH1 (cluster ID).")
   }
 
-  geo <- geo_data %>%
-    dplyr::mutate(
-      DHSCLUST = as.integer(.data$HH1),
-      LONGNUM  = sf::st_coordinates(geometry)[, 1],
-      LATNUM   = sf::st_coordinates(geometry)[, 2],
-      ADM1NAME = dplyr::if_else("GEONAME" %in% names(geo_data),
-                                .data$GEONAME,
-                                NA_character_)
-    )
+  # geo <- geo_data %>%
+  #   dplyr::mutate(
+  #     DHSCLUST = as.integer(.data$HH1),
+  #     LONGNUM  = sf::st_coordinates(geometry)[, 1],
+  #     LATNUM   = sf::st_coordinates(geometry)[, 2],
+  #     ADM1NAME = dplyr::if_else("GEONAME" %in% names(geo_data),
+  #                               .data$GEONAME,
+  #                               NA_character_)
+  #   )
+
+  if ("GEONAME" %in% names(geo_data)) {
+    geo <- geo_data %>%
+      dplyr::mutate(
+        DHSCLUST = as.integer(.data$HH1),
+        LONGNUM  = sf::st_coordinates(geometry)[, 1],
+        LATNUM   = sf::st_coordinates(geometry)[, 2],
+        ADM1NAME = .data$GEONAME
+      )
+  } else {
+    geo <- geo_data %>%
+      dplyr::mutate(
+        DHSCLUST = as.integer(.data$HH1),
+        LONGNUM  = sf::st_coordinates(geometry)[, 1],
+        LATNUM   = sf::st_coordinates(geometry)[, 2],
+        ADM1NAME = NA_character_
+      )
+  }
 
   message("Loaded ", nrow(geo), " cluster points.")
 
