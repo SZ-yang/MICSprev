@@ -18,3 +18,14 @@ The package provides:
 ```r
 remotes::install_github("SZ-yang/MICSprev")
 library(MICSprev)
+
+
+## Main Functions
+
+| Function          | Description                                         |
+|------------------|-----------------------------------------------------|
+| `process_NMR()`   | Preprocess birth history data for NMR estimation    |
+| `process_ANC()`   | Preprocess women’s health data (ANC 4+)             |
+| `process_DTP3()`  | Preprocess child vaccination data                   |
+| `build_geo_mics()`| Download boundaries + process GPS cluster shapefiles|
+| `run_nmr_analysis()` | Run full NMR analysis and generate plots/tables |
