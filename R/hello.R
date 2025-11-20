@@ -20,13 +20,4 @@ hello <- function() {
 
 
 
-usethis::use_package("dplyr")
-usethis::use_package("haven")
-usethis::use_package("sf")
-usethis::use_package("surveyPrev")
-usethis::use_package("SUMMER")
-usethis::use_package("stringr")
-usethis::use_package("rlang")
 
-usethis::use_package("ggplot2")
-usethis::use_package("patchwork")
