@@ -1,0 +1,13 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.httr-oauth
+.DS_Store
+.quarto
+inst/doc
+/Meta/
+#/doc/
+/inst/extdata/
+/.RDataTmp
+/.RDataTmp1

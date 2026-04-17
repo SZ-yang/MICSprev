@@ -1,0 +1,483 @@
+---
+title: "MICSprev workflow"
+author: "MICSprev authors"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{MICSprev workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 10,
+  fig.height = 6.5,
+  fig.align = "center",
+  out.width = "100%",
+  dpi = 144
+)
+```
+
+# Overview
+
+`MICSprev` provides a workflow for processing MICS survey and GPS data, constructing geographic inputs, fitting direct and model-based estimators, and visualizing results for small area estimation.
+
+This vignette demonstrates a complete example using Nigeria MICS 2021 data. The example covers three indicators:
+
+- neonatal mortality rate (NMR)
+- antenatal care coverage (ANC)
+- DTP3 vaccination coverage (DTP3)
+
+The main steps are:
+
+1. build geographic inputs from the GPS file
+2. read the survey files
+3. process each indicator into a standardized format
+4. run direct and model-based estimators
+5. extract results
+6. generate maps and ridge plots
+
+# Installation
+
+Install the development version from GitHub:
+
+```{r eval=FALSE}
+# install.packages("devtools")
+devtools::install_github("SZ-yang/MICSprev")
+```
+
+Load the package and supporting libraries:
+
+```{r}
+library(MICSprev)
+library(haven)
+library(dplyr)
+```
+
+To see the exported functions:
+
+```{r}
+ls("package:MICSprev")
+?process_geo_mics
+```
+
+
+# Data access
+
+This vignette uses both MICS survey microdata and the corresponding GPS data. These files are not distributed with the package, so users must obtain them directly from the MICS website before running the workflow.
+
+## Create an account and log in
+
+First, go to the MICS website:
+
+<https://mics.unicef.org/>
+
+Create an account and log in. Access to both the survey microdata and the GPS data is managed through the MICS website.
+
+## Download the survey data
+
+After logging in:
+
+1. Navigate to the **SURVEYS** section.
+2. Choose the country and survey year of interest.  
+   For example, for this vignette you would select **Nigeria / MICS6 / 2021**.
+3. In the **MICS Datasets** column, click **Available** to download the survey datasets.
+4. Download and unzip the files.
+
+For the indicators currently implemented in this workflow, the required files are:
+
+- `bh.sav` for the birth history data
+- `wm.sav` for the women's questionnaire data
+- `ch.sav` for the children's questionnaire data
+
+Make sure these files all come from the same country and survey year.
+
+## Download the GPS data
+
+The GPS data are requested separately from the survey microdata.
+
+1. In the same survey row, go to the GIS column and click Available.
+2. Select Request GPS Datasets.
+3. Submit the request and wait for approval.
+4. After approval, go to your profile and open My GPS Dataset Requests.
+5. Download the approved GPS dataset and unzip the file.
+
+After unzipping, you should keep the entire GPS folder. For example, for the Nigeria 2021 survey, the folder may look like:
+
+```{r eval=FALSE}
+NigeriaMICS2021GPS/
+  NigeriaMICS2021GPS.shp
+  NigeriaMICS2021GPS.shx
+  NigeriaMICS2021GPS.dbf
+  NigeriaMICS2021GPS.prj
+  NigeriaMICS2021GPS.cpg
+  ...
+```
+
+
+## Set file paths
+
+```{r, eval=FALSE}
+# Set paths to the unzipped survey data folder and GPS folder
+data_dir <- "path/to/unzipped/MICS_survey_data"
+gps_dir  <- "path/to/unzipped/NigeriaMICS2021GPS"
+
+# Survey files
+bh_path <- file.path(data_dir, "bh.sav")
+wm_path <- file.path(data_dir, "wm.sav")
+ch_path <- file.path(data_dir, "ch.sav")
+
+# GPS shapefile
+gps_path <- file.path(gps_dir, "NigeriaMICS2021GPS.shp")
+```
+
+
+
+```{r, echo = FALSE}
+bh_path  <- system.file("extdata", "bh.sav", package = "MICSprev")
+wm_path  <- system.file("extdata", "wm.sav", package = "MICSprev")
+ch_path  <- system.file("extdata", "ch.sav", package = "MICSprev")
+gps_path <- system.file(
+  "extdata",
+  "NigeriaMICS2021GPS",
+  "NigeriaMICS2021GPS.shp",
+  package = "MICSprev"
+)
+```
+
+# Workflow
+
+## 1. Build geographic inputs
+
+The first step is to build the cluster- and admin-level geographic objects from the GPS shapefile.
+
+```{r, eval=FALSE}
+# Build geographic inputs from the GPS shapefile
+geo <- process_geo_mics(
+  country.name = "Nigeria",
+  year = 2021,
+  gps_path = gps_path
+)
+```
+
+
+```{r, echo = FALSE}
+geo <- process_geo_mics(
+  country.name = "Nigeria",
+  year = 2021,
+  gps_path = gps_path
+)
+```
+
+The returned object is a list that contains geographic information used by downstream estimation and plotting functions. Typical components include:
+
+- `geo$cluster.info`
+- `geo$admin.info1`
+- `geo$admin.info2`
+- `geo$admin1`
+- `geo$admin2`
+- `geo$geo`
+
+You can inspect its structure with:
+
+```{r}
+str(geo, max.level = 1)
+```
+
+## 2. Read MICS survey files
+
+Next, read the survey files needed for each indicator.
+
+- `bh.sav`: birth history file for NMR
+- `wm.sav`: women's file for ANC
+- `ch.sav`: children's file for DTP3
+
+```{r}
+bh <- read_sav(bh_path)
+wm <- read_sav(wm_path)
+ch <- read_sav(ch_path)
+```
+
+## 3. Process indicators
+
+The package converts each raw survey file into a standardized analysis-ready data set.
+
+
+```{r, eval=FALSE}
+dat_nmr  <- process_indicator(bh, "NMR")
+dat_anc  <- process_indicator(wm, "ANC")
+dat_dtp3 <- process_indicator(ch, "DTP3")
+```
+
+
+```{r, echo=FALSE}
+dat_nmr  <- process_NMR(bh)
+dat_anc  <- process_ANC(wm)
+dat_dtp3 <- process_DTP3(ch)
+```
+
+Each processed data set is expected to contain the core variables required by the estimation functions:
+
+- `cluster`
+- `householdID`
+- `weight`
+- `strata`
+- `value`
+
+A quick set of sanity checks:
+
+```{r}
+lapply(list(NMR = dat_nmr, ANC = dat_anc, DTP3 = dat_dtp3), function(x) {
+  list(
+    cols_ok   = all(c("cluster", "householdID", "weight", "strata", "value") %in% names(x)),
+    n         = nrow(x),
+    value_tab = table(x$value, useNA = "ifany")
+  )
+})
+```
+
+## 4. Run models
+
+This section shows how to run the main estimation workflow with `run_indicator_models()`.
+
+## 4.1 Neonatal mortality rate (NMR)
+
+For NMR, this example fits five model types at admin levels 0, 1, and 2:
+
+- direct estimates
+- Fay-Herriot model with optional dropping of problematic admin 2 areas
+- nested Fay-Herriot model on the full data (`var.fix = TRUE`, `nested = TRUE`)
+- cluster model
+- stratified cluster model
+
+```{r}
+fit_nmr <- run_indicator_models(
+  data = dat_nmr,
+  geo  = geo,
+  admin_levels = c(0, 1, 2),
+  models = c("direct", "fh", "fh_nested", "cluster", "cluster_strat"),
+  model = "bym2",
+  ci = 0.95,
+  drop_lowvar_admin2 = TRUE,
+  lowvar_cutoff = 1e-30,
+  verbose = TRUE
+)
+```
+
+## 4.2 Antenatal care coverage (ANC)
+
+For ANC, this example fits direct estimates and the stratified cluster model at admin levels 1 and 2.
+
+```{r}
+fit_anc <- run_indicator_models(
+  data = dat_anc,
+  geo  = geo,
+  admin_levels = c(1, 2),
+  models = c("direct", "cluster_strat"),
+  verbose = TRUE
+)
+```
+
+## 4.3 DTP3 coverage
+
+For DTP3, this example computes direct estimates only at admin levels 0, 1, and 2.
+
+```{r}
+fit_dtp3 <- run_indicator_models(
+  data = dat_dtp3,
+  geo  = geo,
+  admin_levels = c(0, 1, 2),
+  models = c("direct"),
+  verbose = TRUE
+)
+```
+
+# 5. Access results
+
+The `run_indicator_models()` output organizes results by admin level and model type. This section shows several common extraction patterns.
+
+## 5.1 National direct estimate for NMR
+
+```{r}
+nmr_nat <- fit_nmr$fits[["0"]]$direct$res.natl$direct.est
+cat("National NMR per 1,000:", round(nmr_nat * 1000, 2), "\n")
+```
+
+## 5.2 National estimate for ANC if admin 0 was requested
+
+```{r}
+if ("0" %in% names(fit_anc$fits) && !is.null(fit_anc$fits[["0"]]$direct)) {
+  anc_nat <- fit_anc$fits[["0"]]$direct$res.admin0$direct.est
+  cat("National ANC coverage:", round(anc_nat, 4), "\n")
+} else {
+  cat("ANC national estimate not available because admin 0 was not requested.\n")
+}
+```
+
+## 5.3 Admin 1 direct estimates for NMR
+
+```{r}
+nmr_adm1_direct <- fit_nmr$fits[["1"]]$direct$res.admin1
+head(nmr_adm1_direct)
+```
+
+## 5.4 Admin 2 Fay-Herriot results for NMR (drop-low-variance strategy)
+
+```{r}
+nmr_adm2_fh <- fit_nmr$fits[["2"]]$fh$res.admin2
+head(nmr_adm2_fh)
+```
+
+## 5.5 Admin 2 nested Fay-Herriot results for NMR (full data)
+
+```{r}
+nmr_adm2_fh_nested <- fit_nmr$fits[["2"]]$fh_nested$res.admin2
+head(nmr_adm2_fh_nested)
+```
+
+## 5.6 Admin 1 stratified cluster model results for ANC
+
+Some outputs may include a `type` column. The code below safely extracts the full estimates.
+
+```{r}
+anc_res_admin1 <- fit_anc$fits[["1"]]$cluster_strat$res.admin1
+
+anc_adm1_strat_full <- if ("type" %in% names(anc_res_admin1)) {
+  subset(anc_res_admin1, type == "full")
+} else {
+  anc_res_admin1
+}
+
+head(anc_adm1_strat_full)
+```
+
+## 5.7 Check dropped admin 2 areas for standard FH
+
+When `drop_lowvar_admin2 = TRUE`, the standard Fay-Herriot model records which admin 2 units and clusters were removed before fitting.
+
+```{r}
+head(fit_nmr$dropped$fh_admin2$bad_admin2)
+head(fit_nmr$dropped$fh_admin2$bad_clusters)
+```
+
+# 6. Plotting examples
+
+This section demonstrates how to generate maps and ridge plots for model comparison.
+
+```{r}
+out_dir <- tempfile("MICSprev_plots_")
+dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+```
+
+## 6.1 NMR maps at admin level 1
+
+```{r, fig.width=13, fig.height=8}
+nmr_maps_adm1 <- plot_indicator_maps(
+  fit    = fit_nmr,
+  geo    = geo,
+  admin  = 1,
+  models = c("direct", "fh", "fh_nested", "cluster", "cluster_strat"),
+  scale  = 1000,
+  out_dir = out_dir,
+  prefix  = "NMR_NGA2021"
+)
+
+nmr_maps_adm1$mean_map
+nmr_maps_adm1$cv_map
+```
+
+## 6.2 NMR maps at admin level 2
+
+```{r, fig.width=13, fig.height=8}
+nmr_maps_adm2 <- plot_indicator_maps(
+  fit    = fit_nmr,
+  geo    = geo,
+  admin  = 2,
+  models = c("direct", "fh", "fh_nested", "cluster", "cluster_strat"),
+  scale  = 1000,
+  out_dir = out_dir,
+  prefix  = "NMR_NGA2021"
+)
+
+nmr_maps_adm2$mean_map
+nmr_maps_adm2$cv_map
+
+```
+
+## 6.3 NMR ridge plots
+
+```{r, fig.width=11, fig.height=16}
+p_nmr_ridge_adm1 <- plot_indicator_ridge(
+  fit = fit_nmr,
+  admin = 1,
+  models = c("fh", "fh_nested", "cluster", "cluster_strat"),
+  threshold = 12 / 1000,
+  scale = 1000,
+  out_dir = out_dir,
+  prefix = "NMR_NGA2021"
+)
+p_nmr_ridge_adm1
+```
+
+## 6.4 ANC maps and ridge plot
+
+```{r, fig.width=10, fig.height=7}
+anc_maps_adm1 <- plot_indicator_maps(
+  fit = fit_anc,
+  geo = geo,
+  admin = 1,
+  models = c("direct", "cluster_strat"),
+  scale = 100,
+  out_dir = out_dir,
+  prefix = "ANC4_NGA2021"
+)
+
+anc_maps_adm1$mean_map
+anc_maps_adm1$cv_map
+
+p_anc_ridge_adm1 <- plot_indicator_ridge(
+  fit = fit_anc,
+  admin = 1,
+  models = c("cluster_strat"),
+  threshold = NULL,
+  scale = 100,
+  out_dir = out_dir,
+  prefix = "ANC4_NGA2021"
+)
+p_anc_ridge_adm1
+```
+
+## 6.5 DTP3 maps
+
+```{r, fig.width=10, fig.height=7}
+dtp3_maps_adm1 <- plot_indicator_maps(
+  fit = fit_dtp3,
+  geo = geo,
+  admin = 1,
+  models = c("direct"),
+  scale = 100,
+  out_dir = out_dir,
+  prefix = "DTP3_NGA2021"
+)
+
+dtp3_maps_adm1$mean_map
+dtp3_maps_adm1$cv_map
+```
+
+# Notes
+
+- This vignette is written as a workflow guide using real example files shipped with the package.
+- Depending on model complexity and system setup, some model-fitting or plotting steps may take time.
+- For installed packages, always use `system.file()` to locate example data in `inst/extdata/`.
+- If shapefile reading fails, check that all required shapefile components were included in `inst/extdata/`.
+
+# Session information
+
+```{r}
+sessionInfo()
+```

@@ -1,0 +1,35 @@
+Package: MICSprev
+Type: Package
+Title: What the Package Does (Title Case)
+Version: 0.3.1
+Authors@R: c(
+    person(
+      "Jane", "Doe",
+      email = "jane@example.com",
+      role = c("aut", "cre")
+    )
+  )
+Description: More about what it does (maybe more than one line).
+    Continuation lines should be indented.
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    countrycode,
+    dplyr,
+    ggplot2,
+    haven,
+    patchwork,
+    rlang,
+    sf,
+    stringr,
+    SUMMER,
+    surveyPrev
+RoxygenNote: 7.3.3
+Roxygen: list(markdown = TRUE)
+URL: https://github.com/SZ-yang/MICSprev
+BugReports: https://github.com/SZ-yang/MICSprev/issues
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
