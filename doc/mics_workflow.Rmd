@@ -44,7 +44,46 @@ The main steps are:
 
 # Installation
 
-Install the development version from GitHub:
+## Required dependencies
+
+This package relies on several external packages that must be installed separately.
+
+### Install core dependencies
+
+```{r eval=FALSE}
+install.packages(c(
+  "sf",
+  "dplyr",
+  "ggplot2",
+  "haven",
+  "patchwork",
+  "stringr",
+  "lwgeom"
+))
+```
+
+### Install SUMMER and surveyPrev from GitHub
+
+```{r eval=FALSE}
+install.packages("remotes")
+
+remotes::install_github("richardli/SUMMER")
+remotes::install_github("richardli/surveyPrev")
+```
+### Install INLA (required for model-based estimation)
+
+```{r eval=FALSE}
+install.packages(
+  "INLA",
+  repos = c(
+    getOption("repos"),
+    INLA = "https://inla.r-inla-download.org/R/stable"
+  ),
+  dep = TRUE
+)
+```
+
+### Install the development version from GitHub:
 
 ```{r eval=FALSE}
 # install.packages("devtools")
@@ -67,7 +106,7 @@ ls("package:MICSprev")
 ```
 
 
-# How to get the data
+# Data access
 
 This vignette uses both MICS survey microdata and the corresponding GPS data. These files are not distributed with the package, so users must obtain them directly from the MICS website before running the workflow.
 
@@ -120,7 +159,7 @@ NigeriaMICS2021GPS/
 ```
 
 
-# Read in the data files
+## Set file paths
 
 ```{r, eval=FALSE}
 # Set paths to the unzipped survey data folder and GPS folder
@@ -150,8 +189,9 @@ gps_path <- system.file(
 )
 ```
 
+# Workflow
 
-# 1. Build geographic inputs
+## 1. Build geographic inputs
 
 The first step is to build the cluster- and admin-level geographic objects from the GPS shapefile.
 
@@ -188,7 +228,7 @@ You can inspect its structure with:
 str(geo, max.level = 1)
 ```
 
-# 2. Read MICS survey files
+## 2. Read MICS survey files
 
 Next, read the survey files needed for each indicator.
 
@@ -202,7 +242,7 @@ wm <- read_sav(wm_path)
 ch <- read_sav(ch_path)
 ```
 
-# 3. Process indicators
+## 3. Process indicators
 
 The package converts each raw survey file into a standardized analysis-ready data set.
 
@@ -240,7 +280,7 @@ lapply(list(NMR = dat_nmr, ANC = dat_anc, DTP3 = dat_dtp3), function(x) {
 })
 ```
 
-# 4. Run models
+## 4. Run models
 
 This section shows how to run the main estimation workflow with `run_indicator_models()`.
 

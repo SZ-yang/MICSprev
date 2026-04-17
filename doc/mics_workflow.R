@@ -13,6 +13,33 @@ knitr::opts_chunk$set(
 )
 
 ## ----eval=FALSE---------------------------------------------------------------
+# install.packages(c(
+#   "sf",
+#   "dplyr",
+#   "ggplot2",
+#   "haven",
+#   "patchwork",
+#   "stringr",
+#   "lwgeom"
+# ))
+
+## ----eval=FALSE---------------------------------------------------------------
+# install.packages("remotes")
+# 
+# remotes::install_github("richardli/SUMMER")
+# remotes::install_github("richardli/surveyPrev")
+
+## ----eval=FALSE---------------------------------------------------------------
+# install.packages(
+#   "INLA",
+#   repos = c(
+#     getOption("repos"),
+#     INLA = "https://inla.r-inla-download.org/R/stable"
+#   ),
+#   dep = TRUE
+# )
+
+## ----eval=FALSE---------------------------------------------------------------
 # # install.packages("devtools")
 # devtools::install_github("SZ-yang/MICSprev")
 
@@ -65,195 +92,4 @@ gps_path <- system.file(
 #   year = 2021,
 #   gps_path = gps_path
 # )
-
-## ----echo = FALSE-------------------------------------------------------------
-geo <- process_geo_mics(
-  country.name = "Nigeria",
-  year = 2021,
-  gps_path = gps_path
-)
-
-## -----------------------------------------------------------------------------
-str(geo, max.level = 1)
-
-## -----------------------------------------------------------------------------
-bh <- read_sav(bh_path)
-wm <- read_sav(wm_path)
-ch <- read_sav(ch_path)
-
-## ----eval=FALSE---------------------------------------------------------------
-# dat_nmr  <- process_indicator(bh, "NMR")
-# dat_anc  <- process_indicator(wm, "ANC")
-# dat_dtp3 <- process_indicator(ch, "DTP3")
-
-## ----echo=FALSE---------------------------------------------------------------
-dat_nmr  <- process_NMR(bh)
-dat_anc  <- process_ANC(wm)
-dat_dtp3 <- process_DTP3(ch)
-
-## -----------------------------------------------------------------------------
-lapply(list(NMR = dat_nmr, ANC = dat_anc, DTP3 = dat_dtp3), function(x) {
-  list(
-    cols_ok   = all(c("cluster", "householdID", "weight", "strata", "value") %in% names(x)),
-    n         = nrow(x),
-    value_tab = table(x$value, useNA = "ifany")
-  )
-})
-
-## -----------------------------------------------------------------------------
-fit_nmr <- run_indicator_models(
-  data = dat_nmr,
-  geo  = geo,
-  admin_levels = c(0, 1, 2),
-  models = c("direct", "fh", "fh_nested", "cluster", "cluster_strat"),
-  model = "bym2",
-  ci = 0.95,
-  drop_lowvar_admin2 = TRUE,
-  lowvar_cutoff = 1e-30,
-  verbose = TRUE
-)
-
-## -----------------------------------------------------------------------------
-fit_anc <- run_indicator_models(
-  data = dat_anc,
-  geo  = geo,
-  admin_levels = c(1, 2),
-  models = c("direct", "cluster_strat"),
-  verbose = TRUE
-)
-
-## -----------------------------------------------------------------------------
-fit_dtp3 <- run_indicator_models(
-  data = dat_dtp3,
-  geo  = geo,
-  admin_levels = c(0, 1, 2),
-  models = c("direct"),
-  verbose = TRUE
-)
-
-## -----------------------------------------------------------------------------
-nmr_nat <- fit_nmr$fits[["0"]]$direct$res.natl$direct.est
-cat("National NMR per 1,000:", round(nmr_nat * 1000, 2), "\n")
-
-## -----------------------------------------------------------------------------
-if ("0" %in% names(fit_anc$fits) && !is.null(fit_anc$fits[["0"]]$direct)) {
-  anc_nat <- fit_anc$fits[["0"]]$direct$res.admin0$direct.est
-  cat("National ANC coverage:", round(anc_nat, 4), "\n")
-} else {
-  cat("ANC national estimate not available because admin 0 was not requested.\n")
-}
-
-## -----------------------------------------------------------------------------
-nmr_adm1_direct <- fit_nmr$fits[["1"]]$direct$res.admin1
-head(nmr_adm1_direct)
-
-## -----------------------------------------------------------------------------
-nmr_adm2_fh <- fit_nmr$fits[["2"]]$fh$res.admin2
-head(nmr_adm2_fh)
-
-## -----------------------------------------------------------------------------
-nmr_adm2_fh_nested <- fit_nmr$fits[["2"]]$fh_nested$res.admin2
-head(nmr_adm2_fh_nested)
-
-## -----------------------------------------------------------------------------
-anc_res_admin1 <- fit_anc$fits[["1"]]$cluster_strat$res.admin1
-
-anc_adm1_strat_full <- if ("type" %in% names(anc_res_admin1)) {
-  subset(anc_res_admin1, type == "full")
-} else {
-  anc_res_admin1
-}
-
-head(anc_adm1_strat_full)
-
-## -----------------------------------------------------------------------------
-head(fit_nmr$dropped$fh_admin2$bad_admin2)
-head(fit_nmr$dropped$fh_admin2$bad_clusters)
-
-## -----------------------------------------------------------------------------
-out_dir <- tempfile("MICSprev_plots_")
-dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
-
-## ----fig.width=13, fig.height=8-----------------------------------------------
-nmr_maps_adm1 <- plot_indicator_maps(
-  fit    = fit_nmr,
-  geo    = geo,
-  admin  = 1,
-  models = c("direct", "fh", "fh_nested", "cluster", "cluster_strat"),
-  scale  = 1000,
-  out_dir = out_dir,
-  prefix  = "NMR_NGA2021"
-)
-
-nmr_maps_adm1$mean_map
-nmr_maps_adm1$cv_map
-
-## ----fig.width=13, fig.height=8-----------------------------------------------
-nmr_maps_adm2 <- plot_indicator_maps(
-  fit    = fit_nmr,
-  geo    = geo,
-  admin  = 2,
-  models = c("direct", "fh", "fh_nested", "cluster", "cluster_strat"),
-  scale  = 1000,
-  out_dir = out_dir,
-  prefix  = "NMR_NGA2021"
-)
-
-nmr_maps_adm2$mean_map
-nmr_maps_adm2$cv_map
-
-
-## ----fig.width=11, fig.height=16----------------------------------------------
-p_nmr_ridge_adm1 <- plot_indicator_ridge(
-  fit = fit_nmr,
-  admin = 1,
-  models = c("fh", "fh_nested", "cluster", "cluster_strat"),
-  threshold = 12 / 1000,
-  scale = 1000,
-  out_dir = out_dir,
-  prefix = "NMR_NGA2021"
-)
-p_nmr_ridge_adm1
-
-## ----fig.width=10, fig.height=7-----------------------------------------------
-anc_maps_adm1 <- plot_indicator_maps(
-  fit = fit_anc,
-  geo = geo,
-  admin = 1,
-  models = c("direct", "cluster_strat"),
-  scale = 100,
-  out_dir = out_dir,
-  prefix = "ANC4_NGA2021"
-)
-
-anc_maps_adm1$mean_map
-anc_maps_adm1$cv_map
-
-p_anc_ridge_adm1 <- plot_indicator_ridge(
-  fit = fit_anc,
-  admin = 1,
-  models = c("cluster_strat"),
-  threshold = NULL,
-  scale = 100,
-  out_dir = out_dir,
-  prefix = "ANC4_NGA2021"
-)
-p_anc_ridge_adm1
-
-## ----fig.width=10, fig.height=7-----------------------------------------------
-dtp3_maps_adm1 <- plot_indicator_maps(
-  fit = fit_dtp3,
-  geo = geo,
-  admin = 1,
-  models = c("direct"),
-  scale = 100,
-  out_dir = out_dir,
-  prefix = "DTP3_NGA2021"
-)
-
-dtp3_maps_adm1$mean_map
-dtp3_maps_adm1$cv_map
-
-## -----------------------------------------------------------------------------
-sessionInfo()
 
