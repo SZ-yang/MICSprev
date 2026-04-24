@@ -1,32 +1,6 @@
 # R/plot_indicator.R
 # Exported plotting functions for indicator model outputs
 
-.get_mean_map_direction <- function(indicator) {
-  if (is.null(indicator) || length(indicator) == 0 || all(is.na(indicator))) {
-    warning(
-      "Missing indicator in `fit$indicator`; using default direction = -1.",
-      call. = FALSE
-    )
-    return(-1)
-  }
-
-  indicator <- tolower(as.character(indicator)[1])
-
-  if (indicator %in% "nmr") {
-    return(-1)  # high = bad -> dark
-  }
-
-  if (indicator %in% c("anc", "dtp3")) {
-    return(1)   # high = good -> light
-  }
-
-  warning(
-    "Unknown indicator in `fit$indicator`; using default direction = -1.",
-    call. = FALSE
-  )
-  -1
-}
-
 #' Plot prevalence mean and CV maps for an indicator
 #'
 #' Creates two maps (mean and CV) across selected models at a given admin level.
@@ -38,6 +12,9 @@
 #' @param models Character vector of models to plot.
 #'   Supported values are \code{c("direct","fh","fh_nested","cluster","cluster_strat")}.
 #' @param scale Numeric multiplier applied to means before plotting (default 1).
+#' @param transform Character. Transformation applied to the plotted mean values after
+#'   applying \code{scale}. Use \code{"none"} for the original scale or
+#'   \code{"log1p"} for \code{log1p(mean * scale)}. The CV map is not transformed.
 #' @param out_dir Optional directory to save PDFs. If NULL, does not save.
 #' @param prefix Optional filename prefix.
 #'
@@ -49,10 +26,13 @@ plot_indicator_maps <- function(
     admin = 1,
     models = c("direct", "fh", "fh_nested", "cluster", "cluster_strat"),
     scale = 1,
+    transform = c("none", "log1p"),
     out_dir = NULL,
     prefix = NULL
 ) {
   admin <- as.integer(admin)
+  transform <- match.arg(transform)
+
   if (!admin %in% c(1L, 2L)) {
     stop("plot_indicator_maps(): admin must be 1 or 2.", call. = FALSE)
   }
@@ -76,7 +56,18 @@ plot_indicator_maps <- function(
     stop("plot_indicator_maps(): no model results available to plot for this admin/models.", call. = FALSE)
   }
 
-  dat_long$mean <- dat_long$mean * scale
+  mean_label <- if (scale == 1) "Mean" else paste0("Mean (x", scale, ")")
+
+  dat_long$mean_raw <- dat_long$mean * scale
+  dat_long$mean_plot <- dat_long$mean_raw
+
+  if (transform == "log1p") {
+    if (any(dat_long$mean_raw < 0, na.rm = TRUE)) {
+      stop("plot_indicator_maps(): transform = 'log1p' requires non-negative mean values after scaling.", call. = FALSE)
+    }
+    dat_long$mean_plot <- log1p(dat_long$mean_raw)
+    mean_label <- paste0("log1p(", mean_label, ")")
+  }
 
   join_keys <- unique(dat_long$area_key)
   if (length(join_keys) != 1) {
@@ -91,8 +82,9 @@ plot_indicator_maps <- function(
   geo_sf <- geo_join$geo_sf
   by_geo <- geo_join$by_geo
 
-  mean_direction <- .get_mean_map_direction(fit$indicator)
-  cv_direction <- -1
+  # Keep the color flow consistent across admin levels.
+  # In particular, admin 2 should use the same direction as admin 1.
+  map_direction <- -1
 
   p_mean <- mapPlot_fun(
     data = dat_long,
@@ -101,9 +93,9 @@ plot_indicator_maps <- function(
     by.geo = by_geo,
     is.long = TRUE,
     variables = "model",
-    values = "mean",
-    legend.label = if (scale == 1) "Mean" else paste0("Mean (x", scale, ")"),
-    direction = mean_direction,
+    values = "mean_plot",
+    legend.label = mean_label,
+    direction = map_direction,
     ncol = length(unique(dat_long$model))
   )
 
@@ -116,13 +108,13 @@ plot_indicator_maps <- function(
     variables = "model",
     values = "cv",
     legend.label = "CV",
-    direction = cv_direction,
+    direction = map_direction,
     ncol = length(unique(dat_long$model))
   )
 
   .maybe_save_plot(
     p_mean, out_dir,
-    filename = sprintf("%s_admin%d_mean.pdf", prefix, admin),
+    filename = sprintf("%s_admin%d_mean%s.pdf", prefix, admin, if (transform == "none") "" else paste0("_", transform)),
     width = 12, height = 7
   )
   .maybe_save_plot(
@@ -160,6 +152,7 @@ plot_indicator_ridge <- function(
     prefix = NULL
 ) {
   admin <- as.integer(admin)
+
   if (!admin %in% c(1L, 2L)) {
     stop("plot_indicator_ridge(): admin must be 1 or 2.", call. = FALSE)
   }

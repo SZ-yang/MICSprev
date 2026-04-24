@@ -86,7 +86,7 @@ install.packages(
 ### Install the development version from GitHub:
 
 ```{r eval=FALSE}
-# install.packages("devtools")
+install.packages("devtools")
 devtools::install_github("SZ-yang/MICSprev")
 ```
 
@@ -286,24 +286,25 @@ This section shows how to run the main estimation workflow with `run_indicator_m
 
 ## 4.1 Neonatal mortality rate (NMR)
 
-For NMR, this example fits five model types at admin levels 0, 1, and 2:
+For NMR, this example fits four model types at admin levels 0, 1, and 2:
 
 - direct estimates
-- Fay-Herriot model with optional dropping of problematic admin 2 areas
-- nested Fay-Herriot model on the full data (`var.fix = TRUE`, `nested = TRUE`)
+- Fay-Herriot model
 - cluster model
 - stratified cluster model
+
+The Fay-Herriot model can be configured using `fix_var` and `nested`. In this example, we fit the nested fixed-variance Fay-Herriot model with `fix_var = TRUE` and `nested = TRUE`.
 
 ```{r}
 fit_nmr <- run_indicator_models(
   data = dat_nmr,
-  geo  = geo,
+  geo = geo,
   admin_levels = c(0, 1, 2),
-  models = c("direct", "fh", "fh_nested", "cluster", "cluster_strat"),
+  models = c("direct", "fh", "cluster", "cluster_strat"),
   model = "bym2",
   ci = 0.95,
-  drop_lowvar_admin2 = TRUE,
-  lowvar_cutoff = 1e-30,
+  fix_var = TRUE,
+  nested = TRUE,
   verbose = TRUE
 )
 ```
@@ -365,21 +366,18 @@ nmr_adm1_direct <- fit_nmr$fits[["1"]]$direct$res.admin1
 head(nmr_adm1_direct)
 ```
 
-## 5.4 Admin 2 Fay-Herriot results for NMR (drop-low-variance strategy)
+## 5.4 Admin 2 Fay-Herriot results for NMR
 
 ```{r}
 nmr_adm2_fh <- fit_nmr$fits[["2"]]$fh$res.admin2
 head(nmr_adm2_fh)
 ```
 
-## 5.5 Admin 2 nested Fay-Herriot results for NMR (full data)
+### Optional: dropped admin 2 areas for standard FH
 
-```{r}
-nmr_adm2_fh_nested <- fit_nmr$fits[["2"]]$fh_nested$res.admin2
-head(nmr_adm2_fh_nested)
-```
+The low-variance dropping option only applies to the standard Fay-Herriot model, when fix_var = FALSE and nested = FALSE. Since the main example uses fix_var = TRUE and nested = TRUE, no admin 2 areas are dropped in that fit.
 
-## 5.6 Admin 1 stratified cluster model results for ANC
+## 5.5 Admin 1 stratified cluster model results for ANC
 
 Some outputs may include a `type` column. The code below safely extracts the full estimates.
 
@@ -395,14 +393,6 @@ anc_adm1_strat_full <- if ("type" %in% names(anc_res_admin1)) {
 head(anc_adm1_strat_full)
 ```
 
-## 5.7 Check dropped admin 2 areas for standard FH
-
-When `drop_lowvar_admin2 = TRUE`, the standard Fay-Herriot model records which admin 2 units and clusters were removed before fitting.
-
-```{r}
-head(fit_nmr$dropped$fh_admin2$bad_admin2)
-head(fit_nmr$dropped$fh_admin2$bad_clusters)
-```
 
 # 6. Plotting examples
 
@@ -420,7 +410,7 @@ nmr_maps_adm1 <- plot_indicator_maps(
   fit    = fit_nmr,
   geo    = geo,
   admin  = 1,
-  models = c("direct", "fh", "fh_nested", "cluster", "cluster_strat"),
+  models = c("direct", "fh", "cluster", "cluster_strat"),
   scale  = 1000,
   out_dir = out_dir,
   prefix  = "NMR_NGA2021"
@@ -432,20 +422,36 @@ nmr_maps_adm1$cv_map
 
 ## 6.2 NMR maps at admin level 2
 
+The second pair of maps uses `transform = "log1p"` to improve visual contrast when most admin 2 estimates are small and a few areas have much larger values. The estimates themselves are not changed; only the color scale is transformed.
+
 ```{r, fig.width=13, fig.height=8}
 nmr_maps_adm2 <- plot_indicator_maps(
-  fit    = fit_nmr,
-  geo    = geo,
-  admin  = 2,
-  models = c("direct", "fh", "fh_nested", "cluster", "cluster_strat"),
-  scale  = 1000,
+  fit = fit_nmr,
+  geo = geo,
+  admin = 2,
+  models = c("direct", "fh", "cluster", "cluster_strat"),
+  scale = 1000,
   out_dir = out_dir,
-  prefix  = "NMR_NGA2021"
+  prefix = "NMR_NGA2021"
 )
 
 nmr_maps_adm2$mean_map
 nmr_maps_adm2$cv_map
 
+
+nmr_maps_adm2_log <- plot_indicator_maps(
+  fit = fit_nmr,
+  geo = geo,
+  admin = 2,
+  models = c("direct", "fh", "cluster", "cluster_strat"),
+  scale = 1000,
+  out_dir = out_dir,
+  prefix = "NMR_NGA2021_log1p",
+  transform = "log1p"
+)
+
+nmr_maps_adm2_log$mean_map
+nmr_maps_adm2_log$cv_map
 ```
 
 ## 6.3 NMR ridge plots
@@ -454,7 +460,7 @@ nmr_maps_adm2$cv_map
 p_nmr_ridge_adm1 <- plot_indicator_ridge(
   fit = fit_nmr,
   admin = 1,
-  models = c("fh", "fh_nested", "cluster", "cluster_strat"),
+  models = c("fh", "cluster", "cluster_strat"),
   threshold = 12 / 1000,
   scale = 1000,
   out_dir = out_dir,

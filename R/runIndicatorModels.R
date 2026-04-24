@@ -8,15 +8,18 @@
 #' @param geo Output list from process_geo_mics().
 #' @param admin_levels Integer vector of admin levels to fit, e.g. c(0, 1, 2).
 #' @param models Character vector of models to fit. Supported values are
-#'   "direct", "fh", "fh_nested", "cluster", "cluster_strat".
-#'   "fh" fits the standard Fay-Herriot model; at admin 2 it can optionally
-#'   drop low-variance areas before fitting.
-#'   "fh_nested" fits an alternative Fay-Herriot model on the full data using
-#'   var.fix = TRUE and nested = TRUE.
+#'   "direct", "fh", "cluster", "cluster_strat".
+#'   "fh" fits a Fay-Herriot model; use \code{fix_var} and \code{nested}
+#'   to choose the FH variant.
 #' @param model Spatial random effect for fh/cluster models. Usually "bym2" or "iid".
 #' @param ci Credible/confidence interval level.
+#' @param fix_var Logical; passed to \code{surveyPrev::fhModel()} as
+#'   \code{var.fix}. If TRUE, fit FH with fixed direct variances.
+#' @param nested Logical; passed to \code{surveyPrev::fhModel()} as
+#'   \code{nested}. If TRUE, fit the nested FH variant.
 #' @param drop_lowvar_admin2 Logical; if TRUE, optionally drops problematic admin2
-#'   units before fitting admin2 FH models.
+#'   units before fitting standard admin2 FH models. This is only applied when
+#'   \code{fix_var = FALSE} and \code{nested = FALSE}.
 #' @param lowvar_cutoff Numeric cutoff for very small direct variance at admin2.
 #' @param verbose Logical; print progress messages.
 #' @param ... Additional arguments passed to surveyPrev::clusterModel().
@@ -31,6 +34,8 @@ run_indicator_models <- function(
     models = c("direct", "fh", "cluster", "cluster_strat"),
     model = "bym2",
     ci = 0.95,
+    fix_var = FALSE,
+    nested = FALSE,
     drop_lowvar_admin2 = TRUE,
     lowvar_cutoff = 1e-30,
     verbose = TRUE,
@@ -60,14 +65,30 @@ run_indicator_models <- function(
     stop("run_indicator_models(): `geo$cluster.info` is missing.", call. = FALSE)
   }
 
-  supported_models <- c("direct", "fh", "fh_nested", "cluster", "cluster_strat")
+  supported_models <- c("direct", "fh", "cluster", "cluster_strat")
   bad_models <- setdiff(models, supported_models)
   if (length(bad_models) > 0) {
+    if ("fh_nested" %in% bad_models) {
+      stop(
+        "run_indicator_models(): `fh_nested` is no longer a separate model. ",
+        "Use models = 'fh' with nested = TRUE and fix_var = TRUE instead.",
+        call. = FALSE
+      )
+    }
+
     stop(
       "run_indicator_models(): unsupported model(s): ",
       paste(bad_models, collapse = ", "),
       call. = FALSE
     )
+  }
+
+  if (!is.logical(fix_var) || length(fix_var) != 1L || is.na(fix_var)) {
+    stop("run_indicator_models(): `fix_var` must be TRUE or FALSE.", call. = FALSE)
+  }
+
+  if (!is.logical(nested) || length(nested) != 1L || is.na(nested)) {
+    stop("run_indicator_models(): `nested` must be TRUE or FALSE.", call. = FALSE)
   }
 
   admin_levels <- sort(unique(as.integer(admin_levels)))
@@ -210,7 +231,6 @@ run_indicator_models <- function(
     out$fits[[adm_chr]] <- list(
       direct = NULL,
       fh = NULL,
-      fh_nested = NULL,
       cluster = NULL,
       cluster_strat = NULL
     )
@@ -232,15 +252,23 @@ run_indicator_models <- function(
     }
 
     # -------------------------
-    # FH (standard; optionally drop bad admin2 before fit)
+    # FH (configurable; optionally drop bad admin2 before standard fit)
     # -------------------------
     if ("fh" %in% models) {
       if (adm == 0L) {
         .msg("  - skipping FH at admin 0")
       } else {
         fh_data <- data
+        use_fh_drop <- adm == 2L &&
+          isTRUE(drop_lowvar_admin2) &&
+          !isTRUE(fix_var) &&
+          !isTRUE(nested)
 
-        if (adm == 2L && isTRUE(drop_lowvar_admin2)) {
+        if (adm == 2L && isTRUE(drop_lowvar_admin2) && !use_fh_drop) {
+          .msg("  - not applying drop_lowvar_admin2 because fix_var or nested is TRUE")
+        }
+
+        if (use_fh_drop) {
           .msg("  - checking problematic admin2 direct variances")
           dropped_info <- .drop_bad_admin2_clusters(
             data_in = data,
@@ -261,7 +289,11 @@ run_indicator_models <- function(
           }
         }
 
-        .msg("  - Fay-Herriot model")
+        .msg(
+          "  - Fay-Herriot model",
+          " (var.fix = ", isTRUE(fix_var),
+          ", nested = ", isTRUE(nested), ")"
+        )
         out$fits[[adm_chr]]$fh <- fh_fun(
           data = fh_data,
           cluster.info = geo$cluster.info,
@@ -269,28 +301,8 @@ run_indicator_models <- function(
           admin = adm,
           model = model,
           aggregation = TRUE,
-          CI = ci
-        )
-      }
-    }
-
-    # -------------------------
-    # FH nested / fixed variance (full data)
-    # -------------------------
-    if ("fh_nested" %in% models) {
-      if (adm == 0L) {
-        .msg("  - skipping nested FH at admin 0")
-      } else {
-        .msg("  - Fay-Herriot nested model (full data; var.fix = TRUE, nested = TRUE)")
-        out$fits[[adm_chr]]$fh_nested <- fh_fun(
-          data = data,
-          cluster.info = geo$cluster.info,
-          admin.info = admin.info,
-          admin = adm,
-          model = model,
-          aggregation = TRUE,
-          var.fix = TRUE,
-          nested = TRUE,
+          var.fix = isTRUE(fix_var),
+          nested = isTRUE(nested),
           CI = ci
         )
       }

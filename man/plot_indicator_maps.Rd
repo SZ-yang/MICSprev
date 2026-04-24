@@ -10,6 +10,7 @@ plot_indicator_maps(
   admin = 1,
   models = c("direct", "fh", "fh_nested", "cluster", "cluster_strat"),
   scale = 1,
+  transform = c("none", "log1p"),
   out_dir = NULL,
   prefix = NULL
 )
@@ -25,6 +26,10 @@ plot_indicator_maps(
 Supported values are \code{c("direct","fh","fh_nested","cluster","cluster_strat")}.}
 
 \item{scale}{Numeric multiplier applied to means before plotting (default 1).}
+
+\item{transform}{Character. Transformation applied to the plotted mean values after
+applying \code{scale}. Use \code{"none"} for the original scale or
+\code{"log1p"} for \code{log1p(mean * scale)}. The CV map is not transformed.}
 
 \item{out_dir}{Optional directory to save PDFs. If NULL, does not save.}
 

@@ -91,7 +91,7 @@
     return(out)
   }
 
-  if (!model_name %in% c("fh", "fh_nested", "cluster", "cluster_strat")) {
+  if (!model_name %in% c("fh", "cluster", "cluster_strat")) {
     stop(
       "Unsupported model_name in .extract_one_model_admin(): ",
       model_name,

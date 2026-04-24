@@ -11,6 +11,8 @@ run_indicator_models(
   models = c("direct", "fh", "cluster", "cluster_strat"),
   model = "bym2",
   ci = 0.95,
+  fix_var = FALSE,
+  nested = FALSE,
   drop_lowvar_admin2 = TRUE,
   lowvar_cutoff = 1e-30,
   verbose = TRUE,
@@ -26,18 +28,23 @@ cluster, householdID, weight, strata, value.}
 \item{admin_levels}{Integer vector of admin levels to fit, e.g. c(0, 1, 2).}
 
 \item{models}{Character vector of models to fit. Supported values are
-"direct", "fh", "fh_nested", "cluster", "cluster_strat".
-"fh" fits the standard Fay-Herriot model; at admin 2 it can optionally
-drop low-variance areas before fitting.
-"fh_nested" fits an alternative Fay-Herriot model on the full data using
-var.fix = TRUE and nested = TRUE.}
+"direct", "fh", "cluster", "cluster_strat".
+"fh" fits a Fay-Herriot model; use \code{fix_var} and \code{nested}
+to choose the FH variant.}
 
 \item{model}{Spatial random effect for fh/cluster models. Usually "bym2" or "iid".}
 
 \item{ci}{Credible/confidence interval level.}
 
+\item{fix_var}{Logical; passed to \code{surveyPrev::fhModel()} as
+\code{var.fix}. If TRUE, fit FH with fixed direct variances.}
+
+\item{nested}{Logical; passed to \code{surveyPrev::fhModel()} as
+\code{nested}. If TRUE, fit the nested FH variant.}
+
 \item{drop_lowvar_admin2}{Logical; if TRUE, optionally drops problematic admin2
-units before fitting admin2 FH models.}
+units before fitting standard admin2 FH models. This is only applied when
+\code{fix_var = FALSE} and \code{nested = FALSE}.}
 
 \item{lowvar_cutoff}{Numeric cutoff for very small direct variance at admin2.}
 
