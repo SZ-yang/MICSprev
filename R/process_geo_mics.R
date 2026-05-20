@@ -35,6 +35,7 @@ process_geo_mics <- function(country.name, gps_path, out_path = NULL, year) {
   handlers <- list(
     "honduras__2019"     = process_geo_hnd_2019,
     "nigeria__2021"      = process_geo_nga_2021,
+    "nigeria__2016"      = process_geo_nga_2016,
     "ghana__2017"        = process_geo_gha_2017,  # Ghana 2017-18
     "ghana__2018"        = process_geo_gha_2017,  # Ghana 2017-18
     "lao pdr__2017"      = process_geo_lao_2017,  # alias support later

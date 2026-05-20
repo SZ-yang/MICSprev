@@ -38,7 +38,7 @@ process_geo_nga_2021 <- function(gps_path, out_path = NULL) {
   admin2$NAME_2 <- admin2$shapeName
 
   admin2 <- .attach_parent_admin1(admin2, admin1, parent_col = "NAME_1")
-  admin2$admin1.name.full <- paste0(admin2$NAME_1, "_", admin2$NAME_2)
+  admin2$admin2.name.full <- paste0(admin2$NAME_1, "_", admin2$NAME_2)
 
   geo <- .read_gps_points(gps_path, sf::st_crs(admin1))
 
@@ -48,6 +48,54 @@ process_geo_nga_2021 <- function(gps_path, out_path = NULL) {
   .save_geo_result(res, out_path)
   res
 }
+
+
+# Nigeria 2016-17
+#' @keywords internal
+process_geo_nga_2016 <- function(gps_path, out_path = NULL) {
+
+  iso3 <- countrycode::countrycode("Nigeria", "country.name", "iso3c")
+
+  # Use the same boundary source as Nigeria 2021
+  admin0 <- surveyPrev:::get_geoBoundaries(iso3, adm = "ADM0")
+  admin1 <- surveyPrev:::get_geoBoundaries(iso3, adm = "ADM1")
+  admin2 <- surveyPrev:::get_geoBoundaries(iso3, adm = "ADM2")
+
+  admin0$NAME_0 <- admin0$shapeName
+  admin1$NAME_1 <- admin1$shapeName
+  admin2$NAME_2 <- admin2$shapeName
+
+  # Attach admin1 name to each admin2 polygon spatially
+  admin2 <- .attach_parent_admin1(admin2, admin1, parent_col = "NAME_1")
+
+  # Important for admin2 map joins later
+  admin2$admin2.name.full <- paste0(admin2$NAME_1, "_", admin2$NAME_2)
+
+  geo <- .read_gps_points(gps_path, sf::st_crs(admin1))
+
+  infos <- .build_cluster_admin_info(
+    geo,
+    admin1,
+    admin2,
+    by_adm2 = "NAME_2",
+    map = TRUE
+  )
+
+  res <- c(
+    infos,
+    list(
+      admin0 = admin0,
+      admin1 = admin1,
+      admin2 = admin2,
+      geo = geo
+    )
+  )
+
+  .save_geo_result(res, out_path)
+
+  res
+}
+
 
 # Ghana 2017-18 (use year 2017 or 2018 in wrapper)
 #' @keywords internal
