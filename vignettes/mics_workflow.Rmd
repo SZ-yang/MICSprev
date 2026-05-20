@@ -189,8 +189,8 @@ gps_path <- file.path(gps_dir, "NigeriaMICS2021GPS.shp")
 # )
 
 
-data_dir <- "../RawData/Nigeria MICS6 Datasets/Nigeria MICS6 SPSS Datasets"
-gps_dir  <- "../Rawdata/NigeriaMICS2021GPS"
+data_dir <- "C:/Users/zayny/Documents/PER/OneDrive/files/MICS/RawData/Nigeria MICS6 Datasets/Nigeria MICS6 SPSS Datasets"
+gps_dir  <- "C:/Users/zayny/Documents/PER/OneDrive/files/MICS/Rawdata/NigeriaMICS2021GPS"
 
 # Survey files
 bh_path <- file.path(data_dir, "bh.sav")
