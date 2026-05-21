@@ -8,6 +8,7 @@
 #'
 #' Supported (currently, excluding Malawi):
 #' - Honduras 2019
+#' - Nigeria 2016
 #' - Nigeria 2021
 #' - Ghana 2017-18 (use year = 2017 or 2018)
 #' - Lao PDR 2017
