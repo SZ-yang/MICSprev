@@ -304,22 +304,42 @@ process_geo_tha_2022 <- function(gps_path, out_path = NULL) {
     admin1 <- sf::st_transform(admin1, sf::st_crs(admin2))
   }
 
-  # attach exactly one parent NAME_1 per admin2 feature (coworker logic)
+  # attach exactly one parent NAME_1 per admin2 feature
   idx_list <- sf::st_intersects(admin2, admin1)
+
   admin2$NAME_1 <- vapply(idx_list, function(ii) {
     if (length(ii) == 0) NA_character_ else admin1$NAME_1[ii[1]]
   }, character(1))
 
   admin2 <- admin2 %>%
-    dplyr::mutate(NAME_2_UID = paste(.data$NAME_1, .data$NAME_2, sep = " | "))
+    dplyr::mutate(
+      NAME_2_UID = paste(.data$NAME_1, .data$NAME_2, sep = " | "),
+      admin2.name.full = paste0(.data$NAME_1, "_", .data$NAME_2_UID)
+    )
 
   stopifnot(anyDuplicated(admin2$NAME_2_UID) == 0)
+  stopifnot(anyDuplicated(admin2$admin2.name.full) == 0)
 
   geo <- .read_gps_points(gps_path, sf::st_crs(admin1))
 
-  infos <- .build_cluster_admin_info(geo, admin1, admin2, by_adm2 = "NAME_2_UID", map = TRUE)
+  infos <- .build_cluster_admin_info(
+    geo,
+    admin1,
+    admin2,
+    by_adm2 = "NAME_2_UID",
+    map = TRUE
+  )
 
-  res <- c(infos, list(admin0 = admin0, admin1 = admin1, admin2 = admin2, geo = geo))
+  res <- c(
+    infos,
+    list(
+      admin0 = admin0,
+      admin1 = admin1,
+      admin2 = admin2,
+      geo = geo
+    )
+  )
+
   .save_geo_result(res, out_path)
   res
 }
