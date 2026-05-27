@@ -412,6 +412,7 @@ nmr_maps_adm1 <- plot_indicator_maps(
   admin  = 1,
   models = c("direct", "fh", "cluster", "cluster_strat"),
   scale  = 1000,
+  direction = -1,
   out_dir = out_dir,
   prefix  = "NMR_NGA2021"
 )
@@ -431,6 +432,7 @@ nmr_maps_adm2 <- plot_indicator_maps(
   admin = 2,
   models = c("direct", "fh", "cluster", "cluster_strat"),
   scale = 1000,
+  direction = -1,
   out_dir = out_dir,
   prefix = "NMR_NGA2021"
 )
@@ -445,6 +447,7 @@ nmr_maps_adm2_log <- plot_indicator_maps(
   admin = 2,
   models = c("direct", "fh", "cluster", "cluster_strat"),
   scale = 1000,
+  direction = -1,
   out_dir = out_dir,
   prefix = "NMR_NGA2021_log1p",
   transform = "log1p"
@@ -478,6 +481,7 @@ anc_maps_adm1 <- plot_indicator_maps(
   admin = 1,
   models = c("direct", "cluster_strat"),
   scale = 100,
+  direction = 1,
   out_dir = out_dir,
   prefix = "ANC4_NGA2021"
 )
@@ -506,6 +510,7 @@ dtp3_maps_adm1 <- plot_indicator_maps(
   admin = 1,
   models = c("direct"),
   scale = 100,
+  direction = 1,
   out_dir = out_dir,
   prefix = "DTP3_NGA2021"
 )
