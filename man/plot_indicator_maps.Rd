@@ -11,6 +11,7 @@ plot_indicator_maps(
   models = c("direct", "fh", "fh_nested", "cluster", "cluster_strat"),
   scale = 1,
   transform = c("none", "log1p"),
+  direction = -1,
   out_dir = NULL,
   prefix = NULL
 )
@@ -30,6 +31,10 @@ Supported values are \code{c("direct","fh","fh_nested","cluster","cluster_strat"
 \item{transform}{Character. Transformation applied to the plotted mean values after
 applying \code{scale}. Use \code{"none"} for the original scale or
 \code{"log1p"} for \code{log1p(mean * scale)}. The CV map is not transformed.}
+
+\item{direction}{Integer, either \code{-1} or \code{1}. Controls the color scale
+direction for the mean map. Use \code{-1} (default) when darker = higher value
+(e.g. NMR), and \code{1} when darker = lower value (e.g. ANC, DTP3).}
 
 \item{out_dir}{Optional directory to save PDFs. If NULL, does not save.}
 

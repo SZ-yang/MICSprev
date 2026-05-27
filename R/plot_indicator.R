@@ -15,6 +15,9 @@
 #' @param transform Character. Transformation applied to the plotted mean values after
 #'   applying \code{scale}. Use \code{"none"} for the original scale or
 #'   \code{"log1p"} for \code{log1p(mean * scale)}. The CV map is not transformed.
+#' @param direction Integer, either \code{-1} or \code{1}. Controls the color scale
+#'   direction for the mean map. Use \code{-1} (default) when darker = higher value
+#'   (e.g. NMR), and \code{1} when darker = lower value (e.g. ANC, DTP3).
 #' @param out_dir Optional directory to save PDFs. If NULL, does not save.
 #' @param prefix Optional filename prefix.
 #'
@@ -27,6 +30,7 @@ plot_indicator_maps <- function(
     models = c("direct", "fh", "fh_nested", "cluster", "cluster_strat"),
     scale = 1,
     transform = c("none", "log1p"),
+    direction = -1,
     out_dir = NULL,
     prefix = NULL
 ) {
@@ -82,10 +86,6 @@ plot_indicator_maps <- function(
   geo_sf <- geo_join$geo_sf
   by_geo <- geo_join$by_geo
 
-  # Keep the color flow consistent across admin levels.
-  # In particular, admin 2 should use the same direction as admin 1.
-  map_direction <- -1
-
   p_mean <- mapPlot_fun(
     data = dat_long,
     geo = geo_sf,
@@ -95,7 +95,7 @@ plot_indicator_maps <- function(
     variables = "model",
     values = "mean_plot",
     legend.label = mean_label,
-    direction = map_direction,
+    direction = direction,
     ncol = length(unique(dat_long$model))
   )
 
@@ -108,7 +108,7 @@ plot_indicator_maps <- function(
     variables = "model",
     values = "cv",
     legend.label = "CV",
-    direction = map_direction,
+    direction = -1,
     ncol = length(unique(dat_long$model))
   )
 

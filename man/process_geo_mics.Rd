@@ -26,6 +26,7 @@ needed by surveyPrev and SUMMER.
 Supported (currently, excluding Malawi):
 \itemize{
 \item Honduras 2019
+\item Nigeria 2016
 \item Nigeria 2021
 \item Ghana 2017-18 (use year = 2017 or 2018)
 \item Lao PDR 2017

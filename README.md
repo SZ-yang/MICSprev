@@ -133,23 +133,46 @@ fit_nmr <- run_indicator_models(
 ## Visualization example
 
 ```r
-# Standard scale
-maps <- plot_indicator_maps(
+# NMR: darker color = higher mortality (direction = -1)
+maps_nmr <- plot_indicator_maps(
   fit = fit_nmr,
   geo = geo,
-  admin = 2,
-  scale = 1000
+  admin = 1,
+  scale = 1000,
+  direction = -1
 )
 
-# Log-transformed scale (for visual contrast)
-maps_log <- plot_indicator_maps(
+# ANC / DTP3: darker color = lower coverage (direction = 1)
+maps_anc <- plot_indicator_maps(
+  fit = fit_anc,
+  geo = geo,
+  admin = 1,
+  scale = 100,
+  direction = 1
+)
+
+# Log-transformed mean map (for visual contrast when a few areas dominate)
+maps_nmr_log <- plot_indicator_maps(
   fit = fit_nmr,
   geo = geo,
   admin = 2,
   scale = 1000,
+  direction = -1,
   transform = "log1p"
 )
 ```
+
+### Color direction
+
+The `direction` parameter controls the color scale of the **mean map only**:
+
+| Indicator | `direction` | Interpretation |
+|-----------|-------------|----------------|
+| NMR | `-1` | darker = higher mortality |
+| ANC | `1` | darker = lower coverage |
+| DTP3 | `1` | darker = lower coverage |
+
+The **CV map** always uses `direction = -1` (darker = higher uncertainty) regardless of indicator.
 
 The log transformation improves contrast when a few large values dominate the color scale.  
 The underlying estimates are unchanged; only the plotted values are transformed.
