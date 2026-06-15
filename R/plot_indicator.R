@@ -122,21 +122,33 @@ plot_indicator_maps <- function(
     mean_raw_finite <- dat_long$mean_raw[is.finite(dat_long$mean_raw)]
 
     if (length(mean_raw_finite) > 0) {
-      raw_breaks <- pretty(mean_raw_finite, n = 5)
+      raw_range <- range(mean_raw_finite, na.rm = TRUE)
+
+      # Use fewer breaks to avoid overlapping labels after log1p transformation
+      raw_breaks <- pretty(raw_range, n = 4)
+
       raw_breaks <- raw_breaks[
-        raw_breaks >= min(mean_raw_finite, na.rm = TRUE) &
-          raw_breaks <= max(mean_raw_finite, na.rm = TRUE)
+        raw_breaks >= raw_range[1] &
+          raw_breaks <= raw_range[2]
       ]
 
-      if (length(raw_breaks) > 0) {
-        p_mean <- p_mean +
-          ggplot2::scale_fill_viridis_c(
-            name = mean_label,
-            breaks = log1p(raw_breaks),
-            labels = format(raw_breaks, trim = TRUE, scientific = FALSE),
-            direction = direction
-          )
+      # If pretty() still gives too many breaks, keep at most 4
+      if (length(raw_breaks) > 4) {
+        raw_breaks <- raw_breaks[
+          round(seq(1, length(raw_breaks), length.out = 4))
+        ]
       }
+
+      p_mean <- p_mean +
+        ggplot2::scale_fill_viridis_c(
+          name = mean_label,
+          breaks = log1p(raw_breaks),
+          labels = format(raw_breaks, trim = TRUE, scientific = FALSE),
+          direction = direction,
+          guide = ggplot2::guide_colorbar(
+            barheight = grid::unit(3.5, "cm")
+          )
+        )
     }
   }
 
