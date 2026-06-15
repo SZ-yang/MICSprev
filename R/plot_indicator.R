@@ -177,3 +177,242 @@ plot_indicator_maps <- function(
 
   list(mean_map = p_mean, cv_map = p_cv)
 }
+
+
+#' Plot ridge plot of posterior distributions for selected models
+
+#'
+
+#' Uses \code{ridgePlot()} on SUMMER model objects (FH/cluster/cluster_strat).
+
+#' Direct estimates are not ridge-plotted.
+
+#'
+
+#' @param fit Output from \code{\link{run_indicator_models}}.
+
+#' @param admin Integer. One of 1 or 2.
+
+#' @param models Character vector subset of
+
+#' \code{c("fh","fh_nested","cluster","cluster_strat")}.
+
+#' @param threshold Optional numeric. If provided, draws a vertical reference line
+
+#'   on the original model scale. For example, use \code{threshold = 0.8}
+
+#'   even when \code{scale = 100}.
+
+#' @param scale Numeric multiplier applied to x-axis labels only (default 1).
+
+#' @param direction Integer, either \code{-1} or \code{1}. Controls the color scale
+
+#'   direction for the ridge plot. Use \code{-1} when darker = higher value
+
+#'   and \code{1} when darker = lower value.
+
+#' @param out_dir Optional directory to save PDF. If NULL, does not save.
+
+#' @param prefix Optional filename prefix.
+
+#'
+
+#' @return A ggplot object, patchwork object, or list of ggplots.
+
+#' @export
+
+plot_indicator_ridge <- function(
+
+  fit,
+
+  admin = 1,
+
+  models = c("fh", "fh_nested", "cluster", "cluster_strat"),
+
+  threshold = NULL,
+
+  scale = 1,
+
+  direction = -1,
+
+  out_dir = NULL,
+
+  prefix = NULL
+
+) {
+
+  admin <- as.integer(admin)
+
+
+
+  if (!admin %in% c(1L, 2L)) {
+
+    stop("plot_indicator_ridge(): admin must be 1 or 2.", call. = FALSE)
+
+  }
+
+
+
+  if (!is.numeric(direction) || length(direction) != 1 || !direction %in% c(-1, 1)) {
+
+    stop("plot_indicator_ridge(): direction must be either -1 or 1.", call. = FALSE)
+
+  }
+
+
+
+  direction <- as.integer(direction)
+
+
+
+  ridge_supported <- c("fh", "fh_nested", "cluster", "cluster_strat")
+
+  bad_models <- setdiff(models, ridge_supported)
+
+
+
+  if (length(bad_models) > 0) {
+
+    stop(
+
+      "plot_indicator_ridge(): unsupported ridge model(s): ",
+
+      paste(bad_models, collapse = ", "),
+
+      call. = FALSE
+
+    )
+
+  }
+
+
+
+  if (is.null(prefix)) prefix <- "indicator"
+
+
+
+  ridgePlot_fun <- .get_summer_fun("ridgePlot")
+
+  adm_chr <- as.character(admin)
+
+
+
+  plots <- list()
+
+
+
+  for (m in models) {
+
+    obj <- fit$fits[[adm_chr]][[m]]
+
+    if (is.null(obj)) next
+
+
+
+    p <- ridgePlot_fun(
+
+      x = obj,
+
+      direction = direction
+
+    ) +
+
+      ggplot2::ggtitle(m)
+
+
+
+    if (!is.null(threshold)) {
+
+      p <- p +
+
+        ggplot2::geom_vline(
+
+          xintercept = threshold,
+
+          linetype = "dashed",
+
+          alpha = 0.6,
+
+          linewidth = 1
+
+        )
+
+    }
+
+
+
+    if (!is.null(scale) && is.numeric(scale) && length(scale) == 1 && scale != 1) {
+
+      p <- p +
+
+        ggplot2::scale_x_continuous(labels = function(x) x * scale)
+
+    }
+
+
+
+    plots[[m]] <- p
+
+  }
+
+
+
+  if (length(plots) == 0) {
+
+    stop(
+
+      "plot_indicator_ridge(): no ridge-capable model objects found in `fit` for this admin/models.",
+
+      call. = FALSE
+
+    )
+
+  }
+
+
+
+  out_plot <- if (length(plots) == 1) {
+
+    plots[[1]]
+
+  } else {
+
+    if (requireNamespace("patchwork", quietly = TRUE)) {
+
+      patchwork::wrap_plots(plots, ncol = 1)
+
+    } else {
+
+      warning("patchwork not installed; returning a list of ggplots.", call. = FALSE)
+
+      return(plots)
+
+    }
+
+  }
+
+
+
+  .maybe_save_plot(
+
+    out_plot,
+
+    out_dir,
+
+    filename = sprintf("%s_admin%d_ridge.pdf", prefix, admin),
+
+    width = 14,
+
+    height = 8
+
+  )
+
+
+
+  out_plot
+
+}
+
+
+
+
