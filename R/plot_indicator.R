@@ -1,6 +1,3 @@
-# R/plot_indicator.R
-# Exported plotting functions for indicator model outputs
-
 #' Plot prevalence mean and CV maps for an indicator
 #'
 #' Creates two maps (mean and CV) across selected models at a given admin level.
@@ -15,11 +12,14 @@
 #' @param transform Character. Transformation applied to the plotted mean values after
 #'   applying \code{scale}. Use \code{"none"} for the original scale or
 #'   \code{"log1p"} for \code{log1p(mean * scale)}. The CV map is not transformed.
+#'   When \code{transform = "log1p"}, the legend labels are shown on the original scale.
 #' @param direction Integer, either \code{-1} or \code{1}. Controls the color scale
 #'   direction for the mean map. Use \code{-1} (default) when darker = higher value
 #'   (e.g. NMR), and \code{1} when darker = lower value (e.g. ANC, DTP3).
 #' @param out_dir Optional directory to save PDFs. If NULL, does not save.
 #' @param prefix Optional filename prefix.
+#' @param map_ncol Integer. Number of columns in the faceted map layout.
+#'   Default is 2, so four models will appear as a 2 by 2 layout.
 #'
 #' @return A list with ggplot objects: \code{list(mean_map = p_mean, cv_map = p_cv)}.
 #' @export
@@ -32,7 +32,8 @@ plot_indicator_maps <- function(
     transform = c("none", "log1p"),
     direction = -1,
     out_dir = NULL,
-    prefix = NULL
+    prefix = NULL,
+    map_ncol = 2
 ) {
   admin <- as.integer(admin)
   transform <- match.arg(transform)
@@ -45,7 +46,12 @@ plot_indicator_maps <- function(
     stop("plot_indicator_maps(): direction must be either -1 or 1.", call. = FALSE)
   }
 
+  if (!is.numeric(map_ncol) || length(map_ncol) != 1 || is.na(map_ncol) || map_ncol < 1) {
+    stop("plot_indicator_maps(): map_ncol must be a positive integer.", call. = FALSE)
+  }
+
   direction <- as.integer(direction)
+  map_ncol <- as.integer(map_ncol)
 
   supported_models <- c("direct", "fh", "fh_nested", "cluster", "cluster_strat")
   bad_models <- setdiff(models, supported_models)
@@ -75,8 +81,9 @@ plot_indicator_maps <- function(
     if (any(dat_long$mean_raw < 0, na.rm = TRUE)) {
       stop("plot_indicator_maps(): transform = 'log1p' requires non-negative mean values after scaling.", call. = FALSE)
     }
+
+    # Plot colors on log1p scale, but keep the legend on the original scale.
     dat_long$mean_plot <- log1p(dat_long$mean_raw)
-    mean_label <- paste0("log1p(", mean_label, ")")
   }
 
   join_keys <- unique(dat_long$area_key)
@@ -92,6 +99,10 @@ plot_indicator_maps <- function(
   geo_sf <- geo_join$geo_sf
   by_geo <- geo_join$by_geo
 
+  n_models <- length(unique(dat_long$model))
+  map_ncol <- min(map_ncol, n_models)
+  map_nrow <- ceiling(n_models / map_ncol)
+
   p_mean <- mapPlot_fun(
     data = dat_long,
     geo = geo_sf,
@@ -102,8 +113,32 @@ plot_indicator_maps <- function(
     values = "mean_plot",
     legend.label = mean_label,
     direction = direction,
-    ncol = length(unique(dat_long$model))
+    ncol = map_ncol
   )
+
+  # For log1p maps, replace the legend scale so that tick labels are shown
+  # on the original scale, not the log1p scale.
+  if (transform == "log1p") {
+    mean_raw_finite <- dat_long$mean_raw[is.finite(dat_long$mean_raw)]
+
+    if (length(mean_raw_finite) > 0) {
+      raw_breaks <- pretty(mean_raw_finite, n = 5)
+      raw_breaks <- raw_breaks[
+        raw_breaks >= min(mean_raw_finite, na.rm = TRUE) &
+          raw_breaks <= max(mean_raw_finite, na.rm = TRUE)
+      ]
+
+      if (length(raw_breaks) > 0) {
+        p_mean <- p_mean +
+          ggplot2::scale_fill_viridis_c(
+            name = mean_label,
+            breaks = log1p(raw_breaks),
+            labels = format(raw_breaks, trim = TRUE, scientific = FALSE),
+            direction = direction
+          )
+      }
+    }
+  }
 
   p_cv <- mapPlot_fun(
     data = dat_long,
@@ -115,136 +150,30 @@ plot_indicator_maps <- function(
     values = "cv",
     legend.label = "CV",
     direction = -1,
-    ncol = length(unique(dat_long$model))
+    ncol = map_ncol
   )
+
+  plot_width <- if (map_ncol == 1) 8 else 10
+  plot_height <- 4 * map_nrow + 1
 
   .maybe_save_plot(
     p_mean, out_dir,
-    filename = sprintf("%s_admin%d_mean%s.pdf", prefix, admin, if (transform == "none") "" else paste0("_", transform)),
-    width = 12, height = 7
+    filename = sprintf(
+      "%s_admin%d_mean%s.pdf",
+      prefix,
+      admin,
+      if (transform == "none") "" else paste0("_", transform)
+    ),
+    width = plot_width,
+    height = plot_height
   )
+
   .maybe_save_plot(
     p_cv, out_dir,
     filename = sprintf("%s_admin%d_cv.pdf", prefix, admin),
-    width = 12, height = 7
+    width = plot_width,
+    height = plot_height
   )
 
   list(mean_map = p_mean, cv_map = p_cv)
-}
-#' Plot ridge plot of posterior distributions for selected models
-#'
-#' Uses \code{ridgePlot()} on SUMMER model objects (FH/cluster/cluster_strat).
-#' Direct estimates are not ridge-plotted.
-#'
-#' @param fit Output from \code{\link{run_indicator_models}}.
-#' @param admin Integer. One of 1 or 2.
-#' @param models Character vector subset of
-#' \code{c("fh","fh_nested","cluster","cluster_strat")}.
-#' @param threshold Optional numeric. If provided, draws a vertical reference line
-#'   on the original model scale. For example, use \code{threshold = 0.8}
-#'   even when \code{scale = 100}.
-#' @param scale Numeric multiplier applied to x-axis labels only (default 1).
-#' @param direction Integer, either \code{-1} or \code{1}. Controls the color scale
-#'   direction for the ridge plot. Use \code{-1} when darker = higher value
-#'   and \code{1} when darker = lower value.
-#' @param out_dir Optional directory to save PDF. If NULL, does not save.
-#' @param prefix Optional filename prefix.
-#'
-#' @return A ggplot object, patchwork object, or list of ggplots.
-#' @export
-plot_indicator_ridge <- function(
-    fit,
-    admin = 1,
-    models = c("fh", "fh_nested", "cluster", "cluster_strat"),
-    threshold = NULL,
-    scale = 1,
-    direction = -1,
-    out_dir = NULL,
-    prefix = NULL
-) {
-  admin <- as.integer(admin)
-
-  if (!admin %in% c(1L, 2L)) {
-    stop("plot_indicator_ridge(): admin must be 1 or 2.", call. = FALSE)
-  }
-
-  if (!is.numeric(direction) || length(direction) != 1 || !direction %in% c(-1, 1)) {
-    stop("plot_indicator_ridge(): direction must be either -1 or 1.", call. = FALSE)
-  }
-
-  direction <- as.integer(direction)
-
-  ridge_supported <- c("fh", "fh_nested", "cluster", "cluster_strat")
-  bad_models <- setdiff(models, ridge_supported)
-
-  if (length(bad_models) > 0) {
-    stop(
-      "plot_indicator_ridge(): unsupported ridge model(s): ",
-      paste(bad_models, collapse = ", "),
-      call. = FALSE
-    )
-  }
-
-  if (is.null(prefix)) prefix <- "indicator"
-
-  ridgePlot_fun <- .get_summer_fun("ridgePlot")
-  adm_chr <- as.character(admin)
-
-  plots <- list()
-
-  for (m in models) {
-    obj <- fit$fits[[adm_chr]][[m]]
-    if (is.null(obj)) next
-
-    p <- ridgePlot_fun(
-      x = obj,
-      direction = direction
-    ) +
-      ggplot2::ggtitle(m)
-
-    if (!is.null(threshold)) {
-      p <- p +
-        ggplot2::geom_vline(
-          xintercept = threshold,
-          linetype = "dashed",
-          alpha = 0.6,
-          linewidth = 1
-        )
-    }
-
-    if (!is.null(scale) && is.numeric(scale) && length(scale) == 1 && scale != 1) {
-      p <- p +
-        ggplot2::scale_x_continuous(labels = function(x) x * scale)
-    }
-
-    plots[[m]] <- p
-  }
-
-  if (length(plots) == 0) {
-    stop(
-      "plot_indicator_ridge(): no ridge-capable model objects found in `fit` for this admin/models.",
-      call. = FALSE
-    )
-  }
-
-  out_plot <- if (length(plots) == 1) {
-    plots[[1]]
-  } else {
-    if (requireNamespace("patchwork", quietly = TRUE)) {
-      patchwork::wrap_plots(plots, ncol = 1)
-    } else {
-      warning("patchwork not installed; returning a list of ggplots.", call. = FALSE)
-      return(plots)
-    }
-  }
-
-  .maybe_save_plot(
-    out_plot,
-    out_dir,
-    filename = sprintf("%s_admin%d_ridge.pdf", prefix, admin),
-    width = 14,
-    height = 8
-  )
-
-  out_plot
 }

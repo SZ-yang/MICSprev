@@ -178,15 +178,30 @@ gps_path <- file.path(gps_dir, "NigeriaMICS2021GPS.shp")
 
 
 ```{r, echo = FALSE}
-bh_path  <- system.file("extdata", "bh.sav", package = "MICSprev")
-wm_path  <- system.file("extdata", "wm.sav", package = "MICSprev")
-ch_path  <- system.file("extdata", "ch.sav", package = "MICSprev")
-gps_path <- system.file(
-  "extdata",
-  "NigeriaMICS2021GPS",
-  "NigeriaMICS2021GPS.shp",
-  package = "MICSprev"
-)
+# bh_path  <- system.file("extdata", "bh.sav", package = "MICSprev")
+# wm_path  <- system.file("extdata", "wm.sav", package = "MICSprev")
+# ch_path  <- system.file("extdata", "ch.sav", package = "MICSprev")
+# gps_path <- system.file(
+#   "extdata",
+#   "NigeriaMICS2021GPS",
+#   "NigeriaMICS2021GPS.shp",
+#   package = "MICSprev"
+# )
+
+# data_dir <- "C:/Users/zayny/Documents/PER/OneDrive/files/MICS/RawData/Nigeria MICS6 Datasets/Nigeria MICS6 SPSS Datasets"
+# gps_dir  <- "C:/Users/zayny/Documents/PER/OneDrive/files/MICS/Rawdata/NigeriaMICS2021GPS"
+
+data_dir <- "C:/Users/Z/OneDrive/files/MICS/RawData/Nigeria MICS6 Datasets/Nigeria MICS6 SPSS Datasets"
+gps_dir  <- "C:/Users/Z/OneDrive/files/MICS/Rawdata/NigeriaMICS2021GPS"
+
+# Survey files
+bh_path <- file.path(data_dir, "bh.sav")
+wm_path <- file.path(data_dir, "wm.sav")
+ch_path <- file.path(data_dir, "ch.sav")
+
+# GPS shapefile
+gps_path <- file.path(gps_dir, "NigeriaMICS2021GPS.shp")
+
 ```
 
 # Workflow

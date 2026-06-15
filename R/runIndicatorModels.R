@@ -15,8 +15,10 @@
 #' @param ci Credible/confidence interval level.
 #' @param fix_var Logical; passed to \code{surveyPrev::fhModel()} as
 #'   \code{var.fix}. If TRUE, fit FH with fixed direct variances.
-#' @param nested Logical; passed to \code{surveyPrev::fhModel()} as
-#'   \code{nested}. If TRUE, fit the nested FH variant.
+#' @param nested Logical; passed to model functions. If TRUE, fits the nested
+#'   variant for fh, cluster, and cluster_strat models.
+#' @param aggregation Logical; if TRUE, calculates aggregated estimates for all models.
+#'   Defaults to FALSE.
 #' @param drop_lowvar_admin2 Logical; if TRUE, optionally drops problematic admin2
 #'   units before fitting standard admin2 FH models. This is only applied when
 #'   \code{fix_var = FALSE} and \code{nested = FALSE}.
@@ -36,11 +38,17 @@ run_indicator_models <- function(
     ci = 0.95,
     fix_var = FALSE,
     nested = FALSE,
+    aggregation = FALSE,
     drop_lowvar_admin2 = TRUE,
     lowvar_cutoff = 1e-30,
     verbose = TRUE,
     ...
 ) {
+  # -----------------------------
+  # Safely handle lonely PSUs
+  # -----------------------------
+  old_opts <- options(survey.lonely.psu = "adjust")
+  on.exit(options(old_opts), add = TRUE)
   # -----------------------------
   # checks
   # -----------------------------
@@ -89,6 +97,10 @@ run_indicator_models <- function(
 
   if (!is.logical(nested) || length(nested) != 1L || is.na(nested)) {
     stop("run_indicator_models(): `nested` must be TRUE or FALSE.", call. = FALSE)
+  }
+
+  if (!is.logical(aggregation) || length(aggregation) != 1L || is.na(aggregation)) {
+    stop("run_indicator_models(): `aggregation` must be TRUE or FALSE.", call. = FALSE)
   }
 
   admin_levels <- sort(unique(as.integer(admin_levels)))
@@ -247,7 +259,8 @@ run_indicator_models <- function(
       out$fits[[adm_chr]]$direct <- direct_fun(
         data = data,
         cluster.info = geo$cluster.info,
-        admin = adm
+        admin = adm,
+        aggregation = aggregation
       )
     }
 
@@ -300,7 +313,7 @@ run_indicator_models <- function(
           admin.info = admin.info,
           admin = adm,
           model = model,
-          aggregation = TRUE,
+          aggregation = aggregation,
           var.fix = isTRUE(fix_var),
           nested = isTRUE(nested),
           CI = ci
@@ -323,7 +336,8 @@ run_indicator_models <- function(
           stratification = FALSE,
           model = model,
           admin = adm,
-          aggregation = TRUE,
+          aggregation = aggregation,
+          nested = isTRUE(nested),
           CI = ci,
           ...
         )
@@ -345,7 +359,8 @@ run_indicator_models <- function(
           stratification = TRUE,
           model = model,
           admin = adm,
-          aggregation = TRUE,
+          aggregation = aggregation,
+          nested = isTRUE(nested),
           CI = ci,
           ...
         )
