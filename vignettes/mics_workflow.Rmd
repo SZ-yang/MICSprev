@@ -588,8 +588,6 @@ scatterPlot(
 
 - This vignette is written as a workflow guide using real example files shipped with the package.
 - Depending on model complexity and system setup, some model-fitting or plotting steps may take time.
-- For installed packages, always use `system.file()` to locate example data in `inst/extdata/`.
-- If shapefile reading fails, check that all required shapefile components were included in `inst/extdata/`.
 
 # Session information
 
