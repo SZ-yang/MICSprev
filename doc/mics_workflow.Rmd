@@ -178,15 +178,30 @@ gps_path <- file.path(gps_dir, "NigeriaMICS2021GPS.shp")
 
 
 ```{r, echo = FALSE}
-bh_path  <- system.file("extdata", "bh.sav", package = "MICSprev")
-wm_path  <- system.file("extdata", "wm.sav", package = "MICSprev")
-ch_path  <- system.file("extdata", "ch.sav", package = "MICSprev")
-gps_path <- system.file(
-  "extdata",
-  "NigeriaMICS2021GPS",
-  "NigeriaMICS2021GPS.shp",
-  package = "MICSprev"
-)
+# bh_path  <- system.file("extdata", "bh.sav", package = "MICSprev")
+# wm_path  <- system.file("extdata", "wm.sav", package = "MICSprev")
+# ch_path  <- system.file("extdata", "ch.sav", package = "MICSprev")
+# gps_path <- system.file(
+#   "extdata",
+#   "NigeriaMICS2021GPS",
+#   "NigeriaMICS2021GPS.shp",
+#   package = "MICSprev"
+# )
+
+# data_dir <- "C:/Users/zayny/Documents/PER/OneDrive/files/MICS/RawData/Nigeria MICS6 Datasets/Nigeria MICS6 SPSS Datasets"
+# gps_dir  <- "C:/Users/zayny/Documents/PER/OneDrive/files/MICS/Rawdata/NigeriaMICS2021GPS"
+
+data_dir <- "C:/Users/Z/OneDrive/files/MICS/RawData/Nigeria MICS6 Datasets/Nigeria MICS6 SPSS Datasets"
+gps_dir  <- "C:/Users/Z/OneDrive/files/MICS/Rawdata/NigeriaMICS2021GPS"
+
+# Survey files
+bh_path <- file.path(data_dir, "bh.sav")
+wm_path <- file.path(data_dir, "wm.sav")
+ch_path <- file.path(data_dir, "ch.sav")
+
+# GPS shapefile
+gps_path <- file.path(gps_dir, "NigeriaMICS2021GPS.shp")
+
 ```
 
 # Workflow
@@ -519,12 +534,60 @@ dtp3_maps_adm1$mean_map
 dtp3_maps_adm1$cv_map
 ```
 
+
+# 7. Integration with `surveyPrev`
+
+`MICSprev` provides a streamlined wrapper (`run_indicator_models()`) to process data and run standard analyses. Advanced users may want more direct control over their modeling and visualizations. 
+
+Because `MICSprev` is built directly on the [surveyPrev CRAN package](https://cran.r-project.org/package=surveyPrev), the datasets and spatial objects created with `process_indicator()` and `process_geo_mics()` work directly with `surveyPrev`'s functions. 
+
+If you want to perform custom model tuning, extract specific posterior samples, or use plotting options that are not in the wrapper, you can pass your `MICSprev` objects directly into `surveyPrev`.
+
+## 7.1 Demonstration: Direct Fitting and Plotting
+
+In this example, we use `surveyPrev` directly to fit a Fay-Herriot model for ANC coverage at Admin 1, and compare the results using its built-in `scatterPlot()` plotting function.
+
+```{r surveyprev-direct, fig.width=10, fig.height=6}
+# Load the underlying modeling engine
+library(surveyPrev)
+
+# 1. Calculate direct estimates at Admin 1
+direct_res <- directEST(
+  data = dat_anc,
+  cluster.info = geo$cluster.info,
+  admin = 1,
+  aggregation = FALSE
+)
+
+# 2. Fit a Fay-Herriot (BYM2) model at Admin 1
+fh_res <- fhModel(
+  data = dat_anc,
+  cluster.info = geo$cluster.info,
+  admin.info = geo$admin.info1,
+  admin = 1,
+  model = "bym2",
+  aggregation = FALSE
+)
+
+# 3. Use surveyPrev's built-in plotting functions
+# Compare the smoothed FH estimates against the Direct estimates
+scatterPlot(
+  res1 = direct_res$res.admin1,
+  res2 = fh_res$res.admin1,
+  value1 = "direct.est",
+  value2 = "mean",
+  by.res1 = "admin1.name",
+  by.res2 = "admin1.name",
+  title = "ANC Admin 1: Direct vs FH Estimates",
+  label1 = "Direct Estimate",
+  label2 = "Smoothed FH Estimate"
+)
+```
+
 # Notes
 
 - This vignette is written as a workflow guide using real example files shipped with the package.
 - Depending on model complexity and system setup, some model-fitting or plotting steps may take time.
-- For installed packages, always use `system.file()` to locate example data in `inst/extdata/`.
-- If shapefile reading fails, check that all required shapefile components were included in `inst/extdata/`.
 
 # Session information
 
