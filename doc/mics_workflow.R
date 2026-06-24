@@ -221,6 +221,9 @@ nmr_maps_adm1 <- plot_indicator_maps(
 )
 
 nmr_maps_adm1$mean_map
+nmr_maps_adm1$interval_width_map
+
+# Optional diagnostic: CV map
 nmr_maps_adm1$cv_map
 
 ## ----fig.width=13, fig.height=8-----------------------------------------------
@@ -236,7 +239,7 @@ nmr_maps_adm2 <- plot_indicator_maps(
 )
 
 nmr_maps_adm2$mean_map
-nmr_maps_adm2$cv_map
+nmr_maps_adm2$interval_width_map
 
 
 nmr_maps_adm2_log <- plot_indicator_maps(
@@ -252,7 +255,7 @@ nmr_maps_adm2_log <- plot_indicator_maps(
 )
 
 nmr_maps_adm2_log$mean_map
-nmr_maps_adm2_log$cv_map
+nmr_maps_adm2_log$interval_width_map
 
 ## ----fig.width=11, fig.height=16----------------------------------------------
 p_nmr_ridge_adm1 <- plot_indicator_ridge(
@@ -279,7 +282,7 @@ anc_maps_adm1 <- plot_indicator_maps(
 )
 
 anc_maps_adm1$mean_map
-anc_maps_adm1$cv_map
+anc_maps_adm1$interval_width_map
 
 p_anc_ridge_adm1 <- plot_indicator_ridge(
   fit = fit_anc,
@@ -305,7 +308,7 @@ dtp3_maps_adm1 <- plot_indicator_maps(
 )
 
 dtp3_maps_adm1$mean_map
-dtp3_maps_adm1$cv_map
+dtp3_maps_adm1$interval_width_map
 
 ## ----surveyprev-direct, fig.width=10, fig.height=6----------------------------
 # Load the underlying modeling engine

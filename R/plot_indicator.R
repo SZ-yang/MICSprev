@@ -35,7 +35,9 @@ plot_indicator_maps <- function(
     direction = -1,
     out_dir = NULL,
     prefix = NULL,
-    map_ncol = 2
+    map_ncol = 2,
+    plot_width = 10,
+    plot_height = 6.5
 ) {
   admin <- as.integer(admin)
   transform <- match.arg(transform)

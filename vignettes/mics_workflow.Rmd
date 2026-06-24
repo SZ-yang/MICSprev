@@ -411,7 +411,7 @@ head(anc_adm1_strat_full)
 
 # 6. Plotting examples
 
-This section demonstrates how to generate maps and ridge plots for model comparison.
+This section demonstrates how to generate maps and ridge plots for model comparison. The map examples show posterior means and interval widths, where interval width is defined as the upper interval limit minus the lower interval limit. A CV map is shown once for NMR at admin level 1 as an additional diagnostic.
 
 ```{r}
 out_dir <- tempfile("MICSprev_plots_")
@@ -433,12 +433,15 @@ nmr_maps_adm1 <- plot_indicator_maps(
 )
 
 nmr_maps_adm1$mean_map
+nmr_maps_adm1$interval_width_map
+
+# Optional diagnostic: CV map
 nmr_maps_adm1$cv_map
 ```
 
 ## 6.2 NMR maps at admin level 2
 
-The second pair of maps uses `transform = "log1p"` to improve visual contrast when most admin 2 estimates are small and a few areas have much larger values. The estimates themselves are not changed; only the color scale is transformed.
+The second set of maps uses `transform = "log1p"` to improve visual contrast when most admin 2 estimates are small and a few areas have much larger values.
 
 ```{r, fig.width=13, fig.height=8}
 nmr_maps_adm2 <- plot_indicator_maps(
@@ -453,7 +456,7 @@ nmr_maps_adm2 <- plot_indicator_maps(
 )
 
 nmr_maps_adm2$mean_map
-nmr_maps_adm2$cv_map
+nmr_maps_adm2$interval_width_map
 
 
 nmr_maps_adm2_log <- plot_indicator_maps(
@@ -469,7 +472,7 @@ nmr_maps_adm2_log <- plot_indicator_maps(
 )
 
 nmr_maps_adm2_log$mean_map
-nmr_maps_adm2_log$cv_map
+nmr_maps_adm2_log$interval_width_map
 ```
 
 ## 6.3 NMR ridge plots
@@ -502,7 +505,7 @@ anc_maps_adm1 <- plot_indicator_maps(
 )
 
 anc_maps_adm1$mean_map
-anc_maps_adm1$cv_map
+anc_maps_adm1$interval_width_map
 
 p_anc_ridge_adm1 <- plot_indicator_ridge(
   fit = fit_anc,
@@ -531,7 +534,7 @@ dtp3_maps_adm1 <- plot_indicator_maps(
 )
 
 dtp3_maps_adm1$mean_map
-dtp3_maps_adm1$cv_map
+dtp3_maps_adm1$interval_width_map
 ```
 
 
