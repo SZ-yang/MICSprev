@@ -13,6 +13,7 @@ run_indicator_models(
   ci = 0.95,
   fix_var = FALSE,
   nested = FALSE,
+  aggregation = FALSE,
   drop_lowvar_admin2 = TRUE,
   lowvar_cutoff = 1e-30,
   verbose = TRUE,
@@ -39,8 +40,11 @@ to choose the FH variant.}
 \item{fix_var}{Logical; passed to \code{surveyPrev::fhModel()} as
 \code{var.fix}. If TRUE, fit FH with fixed direct variances.}
 
-\item{nested}{Logical; passed to \code{surveyPrev::fhModel()} as
-\code{nested}. If TRUE, fit the nested FH variant.}
+\item{nested}{Logical; passed to model functions. If TRUE, fits the nested
+variant for fh, cluster, and cluster_strat models.}
+
+\item{aggregation}{Logical; if TRUE, calculates aggregated estimates for all models.
+Defaults to FALSE.}
 
 \item{drop_lowvar_admin2}{Logical; if TRUE, optionally drops problematic admin2
 units before fitting standard admin2 FH models. This is only applied when

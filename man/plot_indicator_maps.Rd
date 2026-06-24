@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_indicator.R
 \name{plot_indicator_maps}
 \alias{plot_indicator_maps}
-\title{Plot prevalence mean and CV maps for an indicator}
+\title{Plot prevalence mean, CV, and interval width maps for an indicator}
 \usage{
 plot_indicator_maps(
   fit,
@@ -13,7 +13,8 @@ plot_indicator_maps(
   transform = c("none", "log1p"),
   direction = -1,
   out_dir = NULL,
-  prefix = NULL
+  prefix = NULL,
+  map_ncol = 2
 )
 }
 \arguments{
@@ -30,7 +31,8 @@ Supported values are \code{c("direct","fh","fh_nested","cluster","cluster_strat"
 
 \item{transform}{Character. Transformation applied to the plotted mean values after
 applying \code{scale}. Use \code{"none"} for the original scale or
-\code{"log1p"} for \code{log1p(mean * scale)}. The CV map is not transformed.}
+\code{"log1p"} for \code{log1p(mean * scale)}. The CV map is not transformed.
+When \code{transform = "log1p"}, the legend labels are shown on the original scale.}
 
 \item{direction}{Integer, either \code{-1} or \code{1}. Controls the color scale
 direction for the mean map. Use \code{-1} (default) when darker = higher value
@@ -39,11 +41,16 @@ direction for the mean map. Use \code{-1} (default) when darker = higher value
 \item{out_dir}{Optional directory to save PDFs. If NULL, does not save.}
 
 \item{prefix}{Optional filename prefix.}
+
+\item{map_ncol}{Integer. Number of columns in the faceted map layout.
+Default is 2, so four models will appear as a 2 by 2 layout.}
 }
 \value{
-A list with ggplot objects: \code{list(mean_map = p_mean, cv_map = p_cv)}.
+A list with ggplot objects:
+\code{list(mean_map = p_mean, cv_map = p_cv, interval_width_map = p_interval_width)}.
 }
 \description{
-Creates two maps (mean and CV) across selected models at a given admin level.
+Creates three maps: mean, CV, and interval width across selected models
+at a given admin level.
 This function does not refit any models; it only plots from \code{run_indicator_models()} output.
 }

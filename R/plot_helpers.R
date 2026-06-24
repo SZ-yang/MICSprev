@@ -84,8 +84,15 @@
       }
     }
 
-    out <- res[, c(area_col, "direct.est", "cv"), drop = FALSE]
-    names(out) <- c("area", "mean", "cv")
+    if (all(c("direct.lower", "direct.upper") %in% names(res))) {
+      res$interval_width <- res$direct.upper - res$direct.lower
+    } else {
+      res$interval_width <- NA_real_
+    }
+
+    out <- res[, c(area_col, "direct.est", "cv", "interval_width"), drop = FALSE]
+    names(out) <- c("area", "mean", "cv", "interval_width")
+
     out$area_key <- area_col
     out$model <- "direct"
     return(out)
@@ -120,8 +127,15 @@
     }
   }
 
-  out <- res[, c(area_col, "mean", "cv"), drop = FALSE]
-  names(out) <- c("area", "mean", "cv")
+  if (all(c("lower", "upper") %in% names(res))) {
+    res$interval_width <- res$upper - res$lower
+  } else {
+    res$interval_width <- NA_real_
+  }
+
+  out <- res[, c(area_col, "mean", "cv", "interval_width"), drop = FALSE]
+  names(out) <- c("area", "mean", "cv", "interval_width")
+
   out$area_key <- area_col
   out$model <- model_name
   out

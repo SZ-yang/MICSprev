@@ -1,6 +1,7 @@
-#' Plot prevalence mean and CV maps for an indicator
+#' Plot prevalence mean, CV, and interval width maps for an indicator
 #'
-#' Creates two maps (mean and CV) across selected models at a given admin level.
+#' Creates three maps: mean, CV, and interval width across selected models
+#' at a given admin level.
 #' This function does not refit any models; it only plots from \code{run_indicator_models()} output.
 #'
 #' @param fit Output from \code{\link{run_indicator_models}}.
@@ -21,7 +22,8 @@
 #' @param map_ncol Integer. Number of columns in the faceted map layout.
 #'   Default is 2, so four models will appear as a 2 by 2 layout.
 #'
-#' @return A list with ggplot objects: \code{list(mean_map = p_mean, cv_map = p_cv)}.
+#' @return A list with ggplot objects:
+#' \code{list(mean_map = p_mean, cv_map = p_cv, interval_width_map = p_interval_width)}.
 #' @export
 plot_indicator_maps <- function(
     fit,
@@ -165,6 +167,34 @@ plot_indicator_maps <- function(
     ncol = map_ncol
   )
 
+  width_label <- if (scale == 1) {
+    "Interval width"
+  } else {
+    paste0("Interval width (x", scale, ")")
+  }
+
+  dat_long$interval_width_plot <- dat_long$interval_width * scale
+
+  p_interval_width <- mapPlot_fun(
+    data = dat_long,
+    geo = geo_sf,
+    by.data = "area",
+    by.geo = by_geo,
+    is.long = TRUE,
+    variables = "model",
+    values = "interval_width_plot",
+    legend.label = width_label,
+    direction = -1,
+    ncol = map_ncol
+  )
+
+  .maybe_save_plot(
+    p_interval_width, out_dir,
+    filename = sprintf("%s_admin%d_interval_width.pdf", prefix, admin),
+    width = plot_width,
+    height = plot_height
+  )
+
   plot_width <- if (map_ncol == 1) 8 else 10
   plot_height <- 4 * map_nrow + 1
 
@@ -187,7 +217,11 @@ plot_indicator_maps <- function(
     height = plot_height
   )
 
-  list(mean_map = p_mean, cv_map = p_cv)
+  list(
+    mean_map = p_mean,
+    cv_map = p_cv,
+    interval_width_map = p_interval_width
+  )
 }
 
 

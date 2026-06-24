@@ -10,6 +10,7 @@ plot_indicator_ridge(
   models = c("fh", "fh_nested", "cluster", "cluster_strat"),
   threshold = NULL,
   scale = 1,
+  direction = -1,
   out_dir = NULL,
   prefix = NULL
 )
@@ -22,9 +23,15 @@ plot_indicator_ridge(
 \item{models}{Character vector subset of
 \code{c("fh","fh_nested","cluster","cluster_strat")}.}
 
-\item{threshold}{Optional numeric. If provided, draws a vertical reference line.}
+\item{threshold}{Optional numeric. If provided, draws a vertical reference line
+on the original model scale. For example, use \code{threshold = 0.8}
+even when \code{scale = 100}.}
 
 \item{scale}{Numeric multiplier applied to x-axis labels only (default 1).}
+
+\item{direction}{Integer, either \code{-1} or \code{1}. Controls the color scale
+direction for the ridge plot. Use \code{-1} when darker = higher value
+and \code{1} when darker = lower value.}
 
 \item{out_dir}{Optional directory to save PDF. If NULL, does not save.}
 

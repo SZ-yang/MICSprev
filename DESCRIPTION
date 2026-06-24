@@ -25,7 +25,6 @@ Imports:
     stringr,
     SUMMER,
     surveyPrev
-RoxygenNote: 7.3.3
 Roxygen: list(markdown = TRUE)
 URL: https://github.com/SZ-yang/MICSprev
 BugReports: https://github.com/SZ-yang/MICSprev/issues
@@ -33,3 +32,4 @@ Suggests:
     knitr,
     rmarkdown
 VignetteBuilder: knitr
+Config/roxygen2/version: 8.0.0
