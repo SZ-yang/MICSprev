@@ -1,6 +1,158 @@
 # R/geo_handlers.R
 # Country-year specific geo processors (internal)
 
+# Malawi 2019-20
+# OCHA admin2 districts -> package admin1
+# OCHA admin3 TAs       -> package admin2
+#' @keywords internal
+process_geo_mwi_2019 <- function(gps_path, out_path = NULL) {
+  old_s2 <- .geo_set_s2_off()
+  on.exit(.geo_restore_s2(old_s2), add = TRUE)
+
+  bnd <- .geo_download_mwi_ocha_boundaries()
+
+  admin0 <- bnd$admin0
+  admin1 <- bnd$admin1
+  admin2 <- bnd$admin2
+
+  geo_data <- sf::st_read(gps_path, quiet = TRUE) |>
+    sf::st_make_valid() |>
+    sf::st_transform(sf::st_crs(admin2))
+
+  cluster_col <- .geo_first_existing_col(
+    geo_data,
+    c("HH1", "CLUSTER", "DHSCLUST"),
+    label = "cluster ID column"
+  )
+
+  geo <- geo_data |>
+    dplyr::mutate(
+      DHSCLUST = as.integer(.data[[cluster_col]])
+    )
+
+  xy <- .geo_coords_xy_safe(geo)
+  geo$LONGNUM <- xy[, 1]
+  geo$LATNUM <- xy[, 2]
+
+  utm_crs <- 32736
+
+  geo_fix_m <- sf::st_transform(geo, utm_crs)
+  admin2_m <- sf::st_transform(admin2, utm_crs) |>
+    sf::st_make_valid()
+
+  admin2_point_m <- admin2_m |>
+    dplyr::select(
+      NAME_1,
+      NAME_2_raw,
+      NAME_2,
+      NAME_2_FULL_CHECK
+    )
+
+  sf::st_geometry(admin2_point_m) <-
+    sf::st_point_on_surface(sf::st_geometry(admin2_m))
+
+  geo_fix_m$fix_type <- "original"
+
+  # A) Non-empty GPS points outside TA polygons:
+  # move to a representative point inside the nearest TA polygon.
+  hit_admin2_m <- lengths(sf::st_intersects(geo_fix_m, admin2_m)) > 0
+  has_geom <- !sf::st_is_empty(geo_fix_m)
+  outside_idx <- which(has_geom & !hit_admin2_m)
+
+  if (length(outside_idx) > 0) {
+    nearest_idx <- sf::st_nearest_feature(
+      geo_fix_m[outside_idx, ],
+      admin2_m
+    )
+
+    sf::st_geometry(geo_fix_m)[outside_idx] <-
+      sf::st_geometry(admin2_point_m[nearest_idx, ])
+
+    geo_fix_m$fix_type[outside_idx] <- "outside_coord_to_nearest_TA"
+  }
+
+  # B) Empty Likoma GPS points:
+  # Likoma Boma is urban; TA Mkumpha is rural.
+  if (all(c("GEONAMES", "HH6") %in% names(geo_fix_m))) {
+    likoma_empty_idx <- which(
+      sf::st_is_empty(geo_fix_m) &
+        geo_fix_m$GEONAMES == "Likoma"
+    )
+
+    if (length(likoma_empty_idx) > 0) {
+      hh6_likoma <- as.character(geo_fix_m$HH6[likoma_empty_idx])
+
+      likoma_ta <- dplyr::case_when(
+        hh6_likoma == "Urban" ~ "Likoma Boma",
+        hh6_likoma == "Rural" ~ "TA Mkumpha",
+        TRUE ~ NA_character_
+      )
+
+      likoma_key <- paste("Likoma", likoma_ta, sep = "_")
+      match_likoma <- match(likoma_key, admin2_point_m$NAME_2_FULL_CHECK)
+
+      if (any(is.na(match_likoma))) {
+        stop("Could not assign some empty Likoma GPS clusters.", call. = FALSE)
+      }
+
+      sf::st_geometry(geo_fix_m)[likoma_empty_idx] <-
+        sf::st_geometry(admin2_point_m[match_likoma, ])
+
+      geo_fix_m$fix_type[likoma_empty_idx] <- "likoma_empty_manual_HH6"
+    }
+  }
+
+  geo <- sf::st_transform(geo_fix_m, sf::st_crs(admin2))
+
+  xy_fixed <- .geo_coords_xy_safe(geo)
+  geo$LONGNUM <- xy_fixed[, 1]
+  geo$LATNUM <- xy_fixed[, 2]
+
+  # Add ADM1NAME from district polygons.
+  geo <- geo |>
+    dplyr::select(
+      -dplyr::any_of(c(
+        "NAME_1",
+        "NAME_2",
+        "NAME_2_raw",
+        "NAME_2_FULL_CHECK",
+        "admin2.name.full"
+      ))
+    )
+
+  geo <- sf::st_join(
+    geo,
+    admin1 |> dplyr::select("NAME_1"),
+    join = sf::st_intersects,
+    largest = TRUE
+  ) |>
+    dplyr::mutate(
+      ADM1NAME = as.character(.data$NAME_1)
+    ) |>
+    dplyr::select(-dplyr::all_of("NAME_1"))
+
+  infos <- .build_cluster_admin_info(
+    geo = geo,
+    admin1 = admin1,
+    admin2 = admin2,
+    by_adm2 = "NAME_2",
+    map = TRUE
+  )
+
+  res <- c(
+    infos,
+    list(
+      admin0 = admin0,
+      admin1 = admin1,
+      admin2 = admin2,
+      geo = geo
+    )
+  )
+
+  .save_geo_result(res, out_path)
+  res
+}
+
 # Honduras 2019
 #' @keywords internal
 process_geo_hnd_2019 <- function(gps_path, out_path = NULL) {

@@ -6,7 +6,7 @@
 #' Users provide GPS shapefile; this constructs cluster/admin objects
 #' needed by surveyPrev and SUMMER.
 #'
-#' Supported (currently, excluding Malawi):
+#' Supported:
 #' - Honduras 2019
 #' - Nigeria 2016
 #' - Nigeria 2021
@@ -17,6 +17,7 @@
 #' - Madagascar 2018
 #' - Zimbabwe 2019
 #' - Thailand 2022
+#' - Malawi 2019-20 (use year = 2019 or 2020)
 #'
 #' @param country.name Character. Must match a supported handler key (aliases later).
 #' @param gps_path Path to GPS .shp
@@ -44,7 +45,9 @@ process_geo_mics <- function(country.name, gps_path, out_path = NULL, year) {
     "sierra leone__2017" = process_geo_sle_2017,
     "madagascar__2018"   = process_geo_mdg_2018,
     "zimbabwe__2019"     = process_geo_zwe_2019,
-    "thailand__2022"     = process_geo_tha_2022
+    "thailand__2022"     = process_geo_tha_2022,
+    "malawi__2019" = process_geo_mwi_2019,
+    "malawi__2020" = process_geo_mwi_2019
   )
 
   if (!key %in% names(handlers)) {

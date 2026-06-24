@@ -25,11 +25,14 @@ Imports:
     stringr,
     SUMMER,
     surveyPrev
+Suggests: 
+    knitr,
+    rhdx,
+    rmarkdown
+Remotes:
+    dickoa/rhdx
 Roxygen: list(markdown = TRUE)
 URL: https://github.com/SZ-yang/MICSprev
 BugReports: https://github.com/SZ-yang/MICSprev/issues
-Suggests: 
-    knitr,
-    rmarkdown
 VignetteBuilder: knitr
 Config/roxygen2/version: 8.0.0
