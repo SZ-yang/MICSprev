@@ -439,58 +439,84 @@ process_geo_zwe_2019 <- function(gps_path, out_path = NULL) {
   res
 }
 
-# Thailand 2022 (NAME_2_UID)
+# Thailand 2022
+# GeoBoundaries ADM1 provinces become package admin2.
+# Package admin1 is the MICS intermediate region level dissolved from provinces.
 #' @keywords internal
 process_geo_tha_2022 <- function(gps_path, out_path = NULL) {
   iso3 <- countrycode::countrycode("Thailand", "country.name", "iso3c")
 
-  admin0 <- surveyPrev:::get_geoBoundaries(iso3, adm = "ADM0")
-  admin1 <- surveyPrev:::get_geoBoundaries(iso3, adm = "ADM1")
-  admin2 <- surveyPrev:::get_geoBoundaries(iso3, adm = "ADM2")
+  admin0 <- surveyPrev:::get_geoBoundaries(iso3, adm = "ADM0") |>
+    sf::st_make_valid()
+  admin2 <- surveyPrev:::get_geoBoundaries(iso3, adm = "ADM1")
 
-  admin0$NAME_0 <- admin0$shapeName
-  admin1$NAME_1 <- admin1$shapeName
-  admin2$NAME_2 <- admin2$shapeName
+  admin0_name_col <- .geo_first_existing_col(
+    admin0,
+    c("shapeName", "NAME_0"),
+    required = FALSE,
+    label = "Thailand admin0 name column"
+  )
 
-  if (sf::st_crs(admin1) != sf::st_crs(admin2)) {
-    admin1 <- sf::st_transform(admin1, sf::st_crs(admin2))
+  admin0$NAME_0 <- if (!is.na(admin0_name_col)) {
+    .geo_clean_surveyprev_name(admin0[[admin0_name_col]])
+  } else {
+    "Thailand"
   }
 
-  # attach exactly one parent NAME_1 per admin2 feature
-  idx_list <- sf::st_intersects(admin2, admin1)
+  admin2 <- .tha_prepare_admin2(admin2)
+  admin1 <- .tha_build_admin1_from_admin2(admin2)
 
-  admin2$NAME_1 <- vapply(idx_list, function(ii) {
-    if (length(ii) == 0) NA_character_ else admin1$NAME_1[ii[1]]
-  }, character(1))
-
-  admin2 <- admin2 %>%
-    dplyr::mutate(
-      NAME_2_UID = paste(.data$NAME_1, .data$NAME_2, sep = " | "),
-      admin2.name.full = paste0(.data$NAME_1, "_", .data$NAME_2_UID)
-    )
-
-  stopifnot(anyDuplicated(admin2$NAME_2_UID) == 0)
-  stopifnot(anyDuplicated(admin2$admin2.name.full) == 0)
+  admin3 <- .tha_prepare_admin3(
+    tryCatch(
+      surveyPrev:::get_geoBoundaries(iso3, adm = "ADM2"),
+      error = function(e) NULL
+    ),
+    admin2 = admin2
+  )
 
   geo <- .read_gps_points(gps_path, sf::st_crs(admin1))
 
-  infos <- .build_cluster_admin_info(
+  geo <- geo |>
+    dplyr::select(
+      -dplyr::any_of(c(
+        "NAME_1",
+        "NAME_2",
+        "admin2.name.full"
+      ))
+    )
+
+  geo <- sf::st_join(
     geo,
-    admin1,
-    admin2,
-    by_adm2 = "NAME_2_UID",
+    admin1 |> dplyr::select(dplyr::all_of("NAME_1")),
+    join = sf::st_intersects,
+    largest = TRUE
+  ) |>
+    dplyr::mutate(
+      ADM1NAME = as.character(.data$NAME_1)
+    ) |>
+    dplyr::select(-dplyr::all_of("NAME_1"))
+
+  infos <- .build_cluster_admin_info(
+    geo = geo,
+    admin1 = admin1,
+    admin2 = admin2,
+    by_adm2 = "NAME_2",
     map = TRUE
   )
 
-  res <- c(
-    infos,
-    list(
-      admin0 = admin0,
-      admin1 = admin1,
-      admin2 = admin2,
-      geo = geo
-    )
+  geo_objects <- list(
+    admin0 = admin0,
+    admin1 = admin1,
+    admin2 = admin2
   )
+
+  if (!is.null(admin3)) {
+    geo_objects$admin3 <- admin3
+  }
+
+  geo_objects$geo <- geo
+
+  res <- c(infos, geo_objects)
 
   .save_geo_result(res, out_path)
   res
