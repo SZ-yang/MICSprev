@@ -13,3 +13,6 @@ inst/doc
 /.RDataTmp1
 .positai
 /doc/
+
+# Local AI agent instructions
+/AGENTS.override.md

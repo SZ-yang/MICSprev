@@ -4,3 +4,4 @@
 ^Meta$
 ^\.positai$
 ^\.claude$
+^AGENTS(\.override)?\.md$
