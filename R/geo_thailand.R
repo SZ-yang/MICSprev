@@ -45,6 +45,42 @@
 }
 
 # Internal
+.tha_work_crs <- function() {
+  3857
+}
+
+# Internal
+.tha_keep_polygon_geometry <- function(x, label) {
+  x <- sf::st_make_valid(x)
+  x <- suppressWarnings(sf::st_collection_extract(x, "POLYGON", warn = FALSE))
+  x <- sf::st_make_valid(x)
+  .tha_validate_polygon_geometry(x, label)
+  x
+}
+
+# Internal
+.tha_validate_polygon_geometry <- function(x, label) {
+  geom_type <- as.character(sf::st_geometry_type(x))
+  bad_type <- !geom_type %in% c("POLYGON", "MULTIPOLYGON")
+
+  if (any(bad_type)) {
+    stop(label, " must contain only polygon geometries.", call. = FALSE)
+  }
+
+  empty <- sf::st_is_empty(x)
+  if (any(is.na(empty) | empty)) {
+    stop(label, " contains empty geometries.", call. = FALSE)
+  }
+
+  bbox <- sf::st_bbox(x)
+  if (any(is.na(bbox) | !is.finite(bbox))) {
+    stop(label, " has a non-finite bounding box.", call. = FALSE)
+  }
+
+  invisible(x)
+}
+
+# Internal
 .tha_admin2_admin1_crosswalk <- function() {
   crosswalk <- data.frame(
     admin2_name = c(
@@ -258,6 +294,7 @@
     dplyr::select(-dplyr::all_of(c("admin1_name", "admin2_name", "admin2_key"))) |>
     sf::st_make_valid()
 
+  admin2 <- .tha_keep_polygon_geometry(admin2, "Thailand admin2")
   .tha_validate_admin2(admin2)
   admin2
 }
@@ -314,6 +351,8 @@
     stop("Thailand admin2 contains invalid geometries.", call. = FALSE)
   }
 
+  .tha_validate_polygon_geometry(admin2, "Thailand admin2")
+
   invisible(admin2)
 }
 
@@ -329,11 +368,26 @@
 
 # Internal
 .tha_dissolve_admin1 <- function(admin2) {
-  admin2 |>
+  original_crs <- sf::st_crs(admin2)
+
+  admin2_work <- admin2 |>
     dplyr::select(dplyr::all_of("NAME_1")) |>
+    .tha_keep_polygon_geometry("Thailand admin2")
+
+  if (!is.na(original_crs)) {
+    admin2_work <- sf::st_transform(admin2_work, .tha_work_crs())
+  }
+
+  admin1 <- admin2_work |>
     dplyr::group_by(.data$NAME_1) |>
     dplyr::summarise(.groups = "drop") |>
-    sf::st_make_valid()
+    .tha_keep_polygon_geometry("Thailand admin1")
+
+  if (!is.na(original_crs)) {
+    admin1 <- sf::st_transform(admin1, original_crs)
+  }
+
+  .tha_keep_polygon_geometry(admin1, "Thailand admin1")
 }
 
 # Internal
@@ -362,7 +416,63 @@
     stop("Thailand admin1 contains invalid geometries.", call. = FALSE)
   }
 
+  .tha_validate_polygon_geometry(admin1, "Thailand admin1")
+
   invisible(admin1)
+}
+
+# Internal
+.tha_snap_geo_to_admin2 <- function(geo, admin2) {
+  if (!inherits(geo, "sf")) {
+    stop("Thailand GPS input must be an sf object.", call. = FALSE)
+  }
+
+  if (!inherits(admin2, "sf")) {
+    stop("Thailand admin2 input must be an sf object.", call. = FALSE)
+  }
+
+  admin2_for_join <- admin2
+  if (sf::st_crs(admin2_for_join) != sf::st_crs(geo)) {
+    admin2_for_join <- sf::st_transform(admin2_for_join, sf::st_crs(geo))
+  }
+
+  hit_admin2 <- lengths(sf::st_intersects(geo, admin2_for_join)) > 0
+  has_geom <- !sf::st_is_empty(geo)
+  outside_idx <- which(has_geom & !hit_admin2)
+
+  geo$geo_fix_type <- "original"
+
+  if (length(outside_idx) == 0) {
+    return(geo)
+  }
+
+  geo_work <- sf::st_transform(geo, .tha_work_crs())
+  admin2_work <- admin2_for_join |>
+    sf::st_transform(.tha_work_crs()) |>
+    .tha_keep_polygon_geometry("Thailand admin2")
+
+  admin2_points <- admin2_work |>
+    dplyr::select(dplyr::all_of(c("NAME_1", "NAME_2")))
+
+  sf::st_geometry(admin2_points) <-
+    sf::st_point_on_surface(sf::st_geometry(admin2_work))
+
+  nearest_idx <- sf::st_nearest_feature(
+    geo_work[outside_idx, ],
+    admin2_work
+  )
+
+  sf::st_geometry(geo_work)[outside_idx] <-
+    sf::st_geometry(admin2_points[nearest_idx, ])
+
+  geo_work$geo_fix_type[outside_idx] <- "outside_coord_to_nearest_province"
+
+  geo_fixed <- sf::st_transform(geo_work, sf::st_crs(geo))
+  xy_fixed <- .geo_coords_xy_safe(geo_fixed)
+  geo_fixed$LONGNUM <- xy_fixed[, 1]
+  geo_fixed$LATNUM <- xy_fixed[, 2]
+
+  geo_fixed
 }
 
 # Internal

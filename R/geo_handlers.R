@@ -475,6 +475,7 @@ process_geo_tha_2022 <- function(gps_path, out_path = NULL) {
   )
 
   geo <- .read_gps_points(gps_path, sf::st_crs(admin1))
+  geo <- .tha_snap_geo_to_admin2(geo, admin2)
 
   geo <- geo |>
     dplyr::select(
