@@ -7,6 +7,44 @@
 }
 
 # Internal
+.tha_admin2_name_aliases <- function() {
+  data.frame(
+    geoboundaries_name = c(
+      "Buri Ram",
+      "Lopburi",
+      "Nong Bua Lam Phu",
+      "Phra Nakhon Si Ayutthaya",
+      "Saraburi",
+      "Si Sa Ket"
+    ),
+    admin2_name = c(
+      "Buriram",
+      "Lop Buri",
+      "Nong Bua Lamphu",
+      "Ayutthaya",
+      "Sara Buri",
+      "Sisaket"
+    ),
+    stringsAsFactors = FALSE
+  )
+}
+
+# Internal
+.tha_normalize_admin2_name <- function(x) {
+  x <- .geo_clean_surveyprev_name(x)
+  x <- stringr::str_remove(
+    x,
+    stringr::regex("\\s+Province$", ignore_case = TRUE)
+  )
+  x <- stringr::str_squish(x)
+
+  aliases <- .tha_admin2_name_aliases()
+  hit <- match(x, aliases$geoboundaries_name)
+  x[!is.na(hit)] <- aliases$admin2_name[hit[!is.na(hit)]]
+  x
+}
+
+# Internal
 .tha_admin2_admin1_crosswalk <- function() {
   crosswalk <- data.frame(
     admin2_name = c(
@@ -100,6 +138,7 @@
 
   crosswalk$admin2_name <- .geo_clean_surveyprev_name(crosswalk$admin2_name)
   crosswalk$admin1_name <- .geo_clean_surveyprev_name(crosswalk$admin1_name)
+  crosswalk$admin2_key <- .tha_normalize_admin2_name(crosswalk$admin2_name)
 
   .tha_validate_crosswalk(crosswalk)
   crosswalk
@@ -107,7 +146,7 @@
 
 # Internal
 .tha_validate_crosswalk <- function(crosswalk) {
-  required <- c("admin2_name", "admin1_name")
+  required <- c("admin2_name", "admin1_name", "admin2_key")
   missing_cols <- setdiff(required, names(crosswalk))
 
   if (length(missing_cols) > 0) {
@@ -134,6 +173,15 @@
     stop(
       "Thailand crosswalk contains duplicated province name(s): ",
       paste(dup_admin2, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  dup_key <- unique(crosswalk$admin2_key[duplicated(crosswalk$admin2_key)])
+  if (length(dup_key) > 0) {
+    stop(
+      "Thailand crosswalk contains duplicated normalized province key(s): ",
+      paste(dup_key, collapse = ", "),
       call. = FALSE
     )
   }
@@ -186,26 +234,28 @@
   admin2 <- admin2 |>
     sf::st_make_valid() |>
     dplyr::mutate(
-      NAME_2 = .geo_clean_surveyprev_name(.data[[name_col]])
+      NAME_2_SOURCE = .geo_clean_surveyprev_name(.data[[name_col]]),
+      admin2_key = .tha_normalize_admin2_name(.data$NAME_2_SOURCE)
     )
 
   crosswalk <- .tha_admin2_admin1_crosswalk()
 
   .tha_stop_unmatched_admin2(
-    geo_names = sort(unique(admin2$NAME_2)),
-    crosswalk_names = sort(unique(crosswalk$admin2_name))
+    geo_names = sort(unique(admin2$admin2_key)),
+    crosswalk_names = sort(unique(crosswalk$admin2_key))
   )
 
   admin2 <- dplyr::left_join(
     admin2,
     crosswalk,
-    by = c("NAME_2" = "admin2_name")
+    by = "admin2_key"
   ) |>
     dplyr::mutate(
+      NAME_2 = as.character(.data$admin2_name),
       NAME_1 = as.character(.data$admin1_name),
       admin2.name.full = paste0(.data$NAME_1, "_", .data$NAME_2)
     ) |>
-    dplyr::select(-dplyr::all_of("admin1_name")) |>
+    dplyr::select(-dplyr::all_of(c("admin1_name", "admin2_name", "admin2_key"))) |>
     sf::st_make_valid()
 
   .tha_validate_admin2(admin2)
