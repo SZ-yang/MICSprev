@@ -374,13 +374,27 @@ process_geo_sle_2017 <- function(gps_path, out_path = NULL) {
       LATNUM   = sf::st_coordinates(.data$geometry)[, 2]
     )
 
-  # derive ADM1NAME from polygons (coworker logic)
+  # Derive ADM1NAME from polygons. For jittered points just outside the
+  # boundary, use the parent of the nearest modeling-admin2 (ADM3) polygon so
+  # surveyPrev::clusterInfo() can apply its nearest-admin fallback.
   geo <- sf::st_join(
     geo,
     admin1 %>% dplyr::select(.data$NAME_1),
     join = sf::st_intersects,
     largest = TRUE
-  ) %>%
+  )
+
+  outside_admin1 <- which(is.na(geo$NAME_1))
+  if (length(outside_admin1) > 0L) {
+    metric_crs <- 32629  # UTM zone 29N; covers Sierra Leone
+    nearest_admin2 <- sf::st_nearest_feature(
+      sf::st_transform(geo[outside_admin1, ], metric_crs),
+      sf::st_transform(admin2, metric_crs)
+    )
+    geo$NAME_1[outside_admin1] <- admin2$NAME_1[nearest_admin2]
+  }
+
+  geo <- geo %>%
     dplyr::mutate(ADM1NAME = .data$NAME_1) %>%
     dplyr::select(-.data$NAME_1)
 
