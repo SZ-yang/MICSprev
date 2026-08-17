@@ -40,6 +40,18 @@
   as.numeric(haven::zap_labels(x))
 }
 
+# MICS multi-response items are stored as one character column per option,
+# holding the option letter when selected and "" (or NA) otherwise. The SPSS
+# syntax tests them as `MN3A = "A"`. Returns a logical vector, NA-free.
+#
+# x      - the multi-response column
+# letter - the option letter the column codes for, e.g. "A"
+.mr_yes <- function(x, letter) {
+  if (is.null(x)) return(NULL)
+  x <- as.character(haven::zap_labels(x))
+  !is.na(x) & x == letter
+}
+
 # Assemble the standard return frame. `value` and `indicator` must already be
 # columns of `df`.
 .indicator_result <- function(df, indicator) {
