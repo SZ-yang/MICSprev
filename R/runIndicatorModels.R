@@ -121,6 +121,32 @@ run_indicator_models <- function(
   }
 
   # -----------------------------
+  # indicator / country gate
+  # -----------------------------
+  # Indicator labels are stored lowercase in `data$indicator`; the registry is
+  # keyed on the uppercase indicator code.
+  indicator_key <- toupper(indicator_vals[1])
+  allowed_countries <- .indicator_countries[[indicator_key]]
+
+  if (!is.null(allowed_countries) && !identical(allowed_countries, "all")) {
+    if (is.null(geo$country)) {
+      # Geo objects built before country stamping was added carry no country.
+      # Warn rather than error so existing saved geo objects keep working.
+      warning(
+        "run_indicator_models(): `geo$country` is missing, so the country ",
+        "gate for indicator `", indicator_key, "` could not be checked. ",
+        "Rebuild `geo` with process_geo_mics() to enable this check. ",
+        "Supported countries: ", paste(allowed_countries, collapse = ", "), ".",
+        call. = FALSE
+      )
+    } else {
+      .check_indicator_country(
+        indicator_key, geo$country, "run_indicator_models()"
+      )
+    }
+  }
+
+  # -----------------------------
   # dependency checks
   # -----------------------------
   if (!requireNamespace("surveyPrev", quietly = TRUE)) {
