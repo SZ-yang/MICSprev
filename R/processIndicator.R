@@ -79,7 +79,13 @@ standardize_columns <- function(df, type) {
   SBA     = "nigeria",
   PNCNB   = "nigeria",
   PNCMOM  = "nigeria",
-  PENTA1  = "nigeria"
+  PENTA1  = "nigeria",
+
+  # --- Nigeria-only: Child Protection ---
+  BIRTHREG      = "nigeria",
+  CHILDMARRIAGE = "nigeria",
+  CHILDLABOUR   = "nigeria",
+  FGMDAUGHTER   = "nigeria"
 )
 
 #' Supported indicators and the countries they may be run on
@@ -172,7 +178,18 @@ indicator_countries <- function() {
 #' \code{\link{indicator_countries}()} for the registry.
 #'
 #' Nigeria-only indicators (Nigeria MICS6, 2021):
-#' \code{ANC1}, \code{SBA}, \code{PNCNB}, \code{PNCMOM}, \code{PENTA1}.
+#' \code{ANC1}, \code{SBA}, \code{PNCNB}, \code{PNCMOM}, \code{PENTA1},
+#' \code{BIRTHREG}, \code{CHILDMARRIAGE}, \code{CHILDLABOUR},
+#' \code{FGMDAUGHTER}.
+#'
+#' Most indicators are derived from a single recode file, passed as
+#' \code{data}. A few span more than one; those take their additional recodes
+#' through \code{...}. \code{FGMDAUGHTER} needs all three of \code{fg.sav}
+#' (as \code{data}), \code{bh.sav} and \code{wm.sav}:
+#'
+#' \preformatted{
+#' process_indicator(fg, "FGMDAUGHTER", country = "Nigeria", bh = bh, wm = wm)
+#' }
 #'
 #' @param data A raw MICS survey data.frame. The recode file required depends
 #'   on the indicator (see the individual \code{process_*()} functions).
@@ -181,12 +198,15 @@ indicator_countries <- function() {
 #' @param country Character country name, e.g. \code{"Nigeria"}. Required for
 #'   country-specific indicators; ignored for country-agnostic ones. Matching
 #'   is case- and whitespace-insensitive.
+#' @param ... Additional recode data.frames for indicators that span more than
+#'   one recode file. Passed on to the underlying \code{process_*()} function,
+#'   which names them; supplying them for a single-file indicator is an error.
 #'
 #' @return A processed data.frame with columns
 #' \code{cluster}, \code{householdID}, \code{weight}, \code{strata},
 #' \code{value}, and \code{indicator}.
 #' @export
-process_indicator <- function(data, indicator, country = NULL) {
+process_indicator <- function(data, indicator, country = NULL, ...) {
   indicator_name <- .normalize_indicator(indicator)
   .check_indicator_country(indicator_name, country, "process_indicator()")
 
@@ -201,7 +221,14 @@ process_indicator <- function(data, indicator, country = NULL) {
     "SBA"    = process_SBA(data),
     "PNCNB"  = process_PNCNB(data),
     "PNCMOM" = process_PNCMOM(data),
-    "PENTA1" = process_PENTA1(data)
+    "PENTA1" = process_PENTA1(data),
+
+    # --- Nigeria-only: Child Protection ---
+    "BIRTHREG"      = process_BIRTHREG(data),
+    "CHILDMARRIAGE" = process_CHILDMARRIAGE(data),
+    "CHILDLABOUR"   = process_CHILDLABOUR(data),
+    # Multi-recode: bh and wm arrive through `...`.
+    "FGMDAUGHTER"   = process_FGMDAUGHTER(data, ...)
   )
 
   out
