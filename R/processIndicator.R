@@ -85,7 +85,13 @@ standardize_columns <- function(df, type) {
   BIRTHREG      = "nigeria",
   CHILDMARRIAGE = "nigeria",
   CHILDLABOUR   = "nigeria",
-  FGMDAUGHTER   = "nigeria"
+  FGMDAUGHTER   = "nigeria",
+
+  # --- Nigeria-only: Education ---
+  OOSPRIMARY   = "nigeria",
+  OOSSECONDARY = "nigeria",
+  READING      = "nigeria",
+  MATH         = "nigeria"
 )
 
 #' Supported indicators and the countries they may be run on
@@ -228,7 +234,15 @@ process_indicator <- function(data, indicator, country = NULL, ...) {
     "CHILDMARRIAGE" = process_CHILDMARRIAGE(data),
     "CHILDLABOUR"   = process_CHILDLABOUR(data),
     # Multi-recode: bh and wm arrive through `...`.
-    "FGMDAUGHTER"   = process_FGMDAUGHTER(data, ...)
+    "FGMDAUGHTER"   = process_FGMDAUGHTER(data, ...),
+
+    # --- Nigeria-only: Education ---
+    # `...` carries the country-specific school-structure and reading-task
+    # parameters documented on each function.
+    "OOSPRIMARY"   = process_OOSPRIMARY(data, ...),
+    "OOSSECONDARY" = process_OOSSECONDARY(data, ...),
+    "READING"      = process_READING(data, ...),
+    "MATH"         = process_MATH(data)
   )
 
   out
