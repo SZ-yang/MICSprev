@@ -102,7 +102,16 @@ standardize_columns <- function(df, type) {
   # --- Nigeria-only: WASH ---
   BASICWATER = "nigeria",
   BASICSAN   = "nigeria",
-  OPENDEF    = "nigeria"
+  OPENDEF    = "nigeria",
+
+  # --- Nigeria-only: Social Policy ---
+  HANDWASH    = "nigeria",
+  FUNCDIFF517 = "nigeria",
+  FUNCDIFF217 = "nigeria",
+  HEALTHINS   = "nigeria",
+  SOCTRANSFER = "nigeria",
+  BANKACCT    = "nigeria",
+  BORROWED    = "nigeria"
 )
 
 #' Supported indicators and the countries they may be run on
@@ -204,6 +213,9 @@ indicator_countries <- function() {
 #'     \code{MATH}
 #'   \item Nutrition: \code{EBF}, \code{VITA}
 #'   \item WASH: \code{BASICWATER}, \code{BASICSAN}, \code{OPENDEF}
+#'   \item Social policy: \code{HANDWASH}, \code{FUNCDIFF517},
+#'     \code{FUNCDIFF217}, \code{HEALTHINS}, \code{SOCTRANSFER},
+#'     \code{BANKACCT}, \code{BORROWED}
 #' }
 #'
 #' Call \code{indicator_countries()} for the authoritative, always-current
@@ -272,7 +284,18 @@ process_indicator <- function(data, indicator, country = NULL, ...) {
     # --- Nigeria-only: WASH ---
     "BASICWATER" = process_BASICWATER(data),
     "BASICSAN"   = process_BASICSAN(data),
-    "OPENDEF"    = process_OPENDEF(data)
+    "OPENDEF"    = process_OPENDEF(data),
+
+    # --- Nigeria-only: Social Policy ---
+    "HANDWASH"    = process_HANDWASH(data),
+    "FUNCDIFF517" = process_FUNCDIFF517(data),
+    # Multi-recode: ch arrives through `...`.
+    "FUNCDIFF217" = process_FUNCDIFF217(data, ...),
+    "HEALTHINS"   = process_HEALTHINS(data),
+    # Multi-recode: hl arrives through `...`.
+    "SOCTRANSFER" = process_SOCTRANSFER(data, ...),
+    "BANKACCT"    = process_BANKACCT(data),
+    "BORROWED"    = process_BORROWED(data, ...)
   )
 
   out
