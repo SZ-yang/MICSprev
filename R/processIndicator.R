@@ -97,7 +97,12 @@ standardize_columns <- function(df, type) {
   # Stunting and severe wasting are absent by design: Nigeria MICS6 (2021)
   # released no anthropometry. See R/indicators_nga_nutrition.R.
   EBF  = "nigeria",
-  VITA = "nigeria"
+  VITA = "nigeria",
+
+  # --- Nigeria-only: WASH ---
+  BASICWATER = "nigeria",
+  BASICSAN   = "nigeria",
+  OPENDEF    = "nigeria"
 )
 
 #' Supported indicators and the countries they may be run on
@@ -198,6 +203,7 @@ indicator_countries <- function() {
 #'   \item Education: \code{OOSPRIMARY}, \code{OOSSECONDARY}, \code{READING},
 #'     \code{MATH}
 #'   \item Nutrition: \code{EBF}, \code{VITA}
+#'   \item WASH: \code{BASICWATER}, \code{BASICSAN}, \code{OPENDEF}
 #' }
 #'
 #' Call \code{indicator_countries()} for the authoritative, always-current
@@ -261,7 +267,12 @@ process_indicator <- function(data, indicator, country = NULL, ...) {
 
     # --- Nigeria-only: Nutrition ---
     "EBF"  = process_EBF(data),
-    "VITA" = process_VITA(data, ...)
+    "VITA" = process_VITA(data, ...),
+
+    # --- Nigeria-only: WASH ---
+    "BASICWATER" = process_BASICWATER(data),
+    "BASICSAN"   = process_BASICSAN(data),
+    "OPENDEF"    = process_OPENDEF(data)
   )
 
   out
