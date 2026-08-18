@@ -91,7 +91,13 @@ standardize_columns <- function(df, type) {
   OOSPRIMARY   = "nigeria",
   OOSSECONDARY = "nigeria",
   READING      = "nigeria",
-  MATH         = "nigeria"
+  MATH         = "nigeria",
+
+  # --- Nigeria-only: Nutrition ---
+  # Stunting and severe wasting are absent by design: Nigeria MICS6 (2021)
+  # released no anthropometry. See R/indicators_nga_nutrition.R.
+  EBF  = "nigeria",
+  VITA = "nigeria"
 )
 
 #' Supported indicators and the countries they may be run on
@@ -183,10 +189,19 @@ indicator_countries <- function() {
 #' country-specific and requires \code{country} to be supplied. See
 #' \code{\link{indicator_countries}()} for the registry.
 #'
-#' Nigeria-only indicators (Nigeria MICS6, 2021):
-#' \code{ANC1}, \code{SBA}, \code{PNCNB}, \code{PNCMOM}, \code{PENTA1},
-#' \code{BIRTHREG}, \code{CHILDMARRIAGE}, \code{CHILDLABOUR},
-#' \code{FGMDAUGHTER}.
+#' Nigeria-only indicators (Nigeria MICS6, 2021), by sector:
+#' \itemize{
+#'   \item Health: \code{ANC1}, \code{SBA}, \code{PNCNB}, \code{PNCMOM},
+#'     \code{PENTA1}
+#'   \item Child protection: \code{BIRTHREG}, \code{CHILDMARRIAGE},
+#'     \code{CHILDLABOUR}, \code{FGMDAUGHTER}
+#'   \item Education: \code{OOSPRIMARY}, \code{OOSSECONDARY}, \code{READING},
+#'     \code{MATH}
+#'   \item Nutrition: \code{EBF}, \code{VITA}
+#' }
+#'
+#' Call \code{indicator_countries()} for the authoritative, always-current
+#' list.
 #'
 #' Most indicators are derived from a single recode file, passed as
 #' \code{data}. A few span more than one; those take their additional recodes
@@ -242,7 +257,11 @@ process_indicator <- function(data, indicator, country = NULL, ...) {
     "OOSPRIMARY"   = process_OOSPRIMARY(data, ...),
     "OOSSECONDARY" = process_OOSSECONDARY(data, ...),
     "READING"      = process_READING(data, ...),
-    "MATH"         = process_MATH(data)
+    "MATH"         = process_MATH(data),
+
+    # --- Nigeria-only: Nutrition ---
+    "EBF"  = process_EBF(data),
+    "VITA" = process_VITA(data, ...)
   )
 
   out
