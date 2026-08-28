@@ -327,3 +327,224 @@ process_MATH <- function(fs) {
 
   .indicator_result(fs, "math")
 }
+
+
+# ---------------------------------------------------------------------------
+# Priority two: entry and completion
+# ---------------------------------------------------------------------------
+#
+# FLAG - level codes. The MICS6 template writes ED5A / ED10A as 1 = primary,
+# 2 = lower secondary, 3 = upper secondary, with `< 8` meaning "not DK or
+# missing". Nigeria uses an entirely different scheme:
+#
+#   0 ECCDE | 11 PRIMARY | 21 JUNIOR SECONDARY | 22 VEI/IEI
+#   31 SENIOR SECONDARY | 32 SECONDARY TECHNICAL | 41 HIGHER/TERTIARY
+#   98 DK | 99 NO RESPONSE
+#
+# The defaults below translate the template's level comparisons into this
+# scheme and are exposed as arguments so the mapping is auditable and can be
+# changed. Note in particular that VEI/IEI (22) is grouped with junior
+# secondary and SECONDARY TECHNICAL (32) with senior secondary; the source
+# syntax has no equivalent of either category, so this is a judgement call.
+# The out-of-school indicators above are unaffected - they read only ED4 and
+# ED9, which are plain yes/no items.
+
+.nga_levels <- list(
+  primary       = 11,
+  lower_sec     = c(21, 22),
+  upper_sec     = c(31, 32),
+  higher        = 41,
+  missing_codes = c(98, 99)
+)
+
+
+#' Net intake rate in grade 1 of primary school (Nigeria)
+#'
+#' Percentage of children of primary school entry age (6 in Nigeria) who are
+#' attending grade 1 of primary school. Grade 2 is also accepted, as the source
+#' syntax does, to take account of early starters.
+#'
+#' Translated from \code{MICS6 - 08 - LN.2.2.sps} (\code{firstGrade}; MICS
+#' indicator LN.4).
+#'
+#' @param hl A household listing data.frame (hl.sav) from Nigeria MICS6.
+#' @param primary_entry_age Age of entry into primary school. Default 6.
+#' @param primary_codes \code{ED10A} codes denoting primary school.
+#'   Default 11 (Nigeria's PRIMARY code).
+#'
+#' @return A data.frame with the standard six indicator columns;
+#'   \code{indicator} is \code{"netintake"}.
+#' @export
+process_NETINTAKE <- function(hl,
+                              primary_entry_age = 6,
+                              primary_codes = .nga_levels$primary) {
+  hl <- standardize_columns(hl, "hl")
+
+  required <- c(
+    "cluster", "householdID", "weight", "strata", "schage", "ED10A", "ED10B"
+  )
+  .require_columns(hl, required, "process_NETINTAKE")
+
+  # select if (schage = primarySchoolEntryAge).
+  schage <- .as_code(hl$schage)
+  hl <- hl[schage %in% primary_entry_age, , drop = FALSE]
+
+  # firstGrade = 100 if (ED10A = 1 and (ED10B = 1 or ED10B = 2)).
+  hl$value <- as.integer(
+    .as_code(hl$ED10A) %in% primary_codes & .as_code(hl$ED10B) %in% c(1, 2)
+  )
+
+  .indicator_result(hl, "netintake")
+}
+
+
+# Shared body for the three completion rates in LN.2.7.
+#
+#   if (schage >= <levelCompletionAge> + 3 and schage <= <...> + 5) numberLast = 1.
+#   if numberLast = 1 and ((ED5A > <level> and ED5A < 8)
+#                          or (ED5A = <level> and ED5B = <grades> and ED6 = 1))
+#      completion = 1.
+#
+# The denominator is the cohort 3-5 years above the level's completion age,
+# which is what makes these "completion rates" rather than attendance rates.
+.nga_completion <- function(hl, completion_age, level_codes, higher_codes,
+                            level_grades, fn, label) {
+  hl <- standardize_columns(hl, "hl")
+
+  required <- c(
+    "cluster", "householdID", "weight", "strata",
+    "schage", "ED5A", "ED5B", "ED6"
+  )
+  .require_columns(hl, required, fn)
+
+  schage <- .as_code(hl$schage)
+  keep <- !is.na(schage) &
+    schage >= completion_age + 3 & schage <= completion_age + 5
+  hl <- hl[keep, , drop = FALSE]
+
+  ed5a <- .as_code(hl$ED5A)
+
+  # Attended a level above this one (excluding DK/missing), or completed the
+  # final grade of this level.
+  completed_higher <- ed5a %in% higher_codes
+  completed_this <- ed5a %in% level_codes &
+    .as_code(hl$ED5B) %in% level_grades &
+    .as_code(hl$ED6) %in% 1
+
+  hl$value <- as.integer(completed_higher | completed_this)
+
+  .indicator_result(hl, label)
+}
+
+
+#' Primary school completion rate (Nigeria)
+#'
+#' Percentage of children 3-5 years above primary school completion age (14-16
+#' in Nigeria) who have completed primary school.
+#'
+#' Translated from \code{MICS6 - 08 - LN.2.7.sps} (\code{completionP}; MICS
+#' indicator LN.6, SDG indicator 4.1.2). See the level-code FLAG at the top of
+#' this section.
+#'
+#' @param hl A household listing data.frame (hl.sav) from Nigeria MICS6.
+#' @param primary_entry_age Age of entry into primary school. Default 6.
+#' @param primary_grades Number of grades in primary school. Default 6.
+#'
+#' @return A data.frame with the standard six indicator columns;
+#'   \code{indicator} is \code{"primarycompl"}.
+#' @export
+process_PRIMARYCOMPL <- function(hl,
+                                 primary_entry_age = 6,
+                                 primary_grades = 6) {
+  ages <- .nga_school_ages(primary_entry_age, primary_grades)
+
+  .nga_completion(
+    hl,
+    completion_age = ages$primary_completion,
+    level_codes = .nga_levels$primary,
+    higher_codes = c(.nga_levels$lower_sec, .nga_levels$upper_sec,
+                     .nga_levels$higher),
+    level_grades = primary_grades,
+    fn = "process_PRIMARYCOMPL",
+    label = "primarycompl"
+  )
+}
+
+
+#' Lower secondary school completion rate (Nigeria)
+#'
+#' Percentage of children 3-5 years above lower secondary completion age (17-19
+#' in Nigeria) who have completed junior secondary school.
+#'
+#' Translated from \code{MICS6 - 08 - LN.2.7.sps} (\code{completionLS}; MICS
+#' indicator LN.7, SDG indicator 4.1.2). See the level-code FLAG at the top of
+#' this section.
+#'
+#' @param hl A household listing data.frame (hl.sav) from Nigeria MICS6.
+#' @param primary_entry_age Age of entry into primary school. Default 6.
+#' @param primary_grades Number of grades in primary school. Default 6.
+#' @param lower_sec_grades Number of grades in lower secondary. Default 3.
+#'
+#' @return A data.frame with the standard six indicator columns;
+#'   \code{indicator} is \code{"lowseccompl"}.
+#' @export
+process_LOWSECCOMPL <- function(hl,
+                                primary_entry_age = 6,
+                                primary_grades = 6,
+                                lower_sec_grades = 3) {
+  ages <- .nga_school_ages(primary_entry_age, primary_grades, lower_sec_grades)
+
+  .nga_completion(
+    hl,
+    completion_age = ages$low_sec_completion,
+    level_codes = .nga_levels$lower_sec,
+    higher_codes = c(.nga_levels$upper_sec, .nga_levels$higher),
+    level_grades = lower_sec_grades,
+    fn = "process_LOWSECCOMPL",
+    label = "lowseccompl"
+  )
+}
+
+
+#' Upper secondary school completion rate (Nigeria)
+#'
+#' Percentage of children 3-5 years above upper secondary completion age (20-22
+#' in Nigeria) who have completed senior secondary school.
+#'
+#' Translated from \code{MICS6 - 08 - LN.2.7.sps} (\code{completionUS}; MICS
+#' indicator LN.8, SDG indicator 4.1.2). See the level-code FLAG at the top of
+#' this section.
+#'
+#' FLAG: \code{define/MICS6 - 08 - LN.sps} ships \code{UpSecSchoolGrades = 4},
+#' which is wrong for Nigeria - senior secondary is 3 years. The default here
+#' is 3, giving an upper secondary completion age of 17 and a denominator of
+#' ages 20-22. With the template's 4 the denominator would shift to 21-23.
+#'
+#' @param hl A household listing data.frame (hl.sav) from Nigeria MICS6.
+#' @param primary_entry_age Age of entry into primary school. Default 6.
+#' @param primary_grades Number of grades in primary school. Default 6.
+#' @param lower_sec_grades Number of grades in lower secondary. Default 3.
+#' @param upper_sec_grades Number of grades in upper secondary. Default 3
+#'   (Nigeria), not the template's 4.
+#'
+#' @return A data.frame with the standard six indicator columns;
+#'   \code{indicator} is \code{"upseccompl"}.
+#' @export
+process_UPSECCOMPL <- function(hl,
+                               primary_entry_age = 6,
+                               primary_grades = 6,
+                               lower_sec_grades = 3,
+                               upper_sec_grades = 3) {
+  ages <- .nga_school_ages(primary_entry_age, primary_grades, lower_sec_grades)
+  upper_sec_completion <- ages$low_sec_completion + upper_sec_grades
+
+  .nga_completion(
+    hl,
+    completion_age = upper_sec_completion,
+    level_codes = .nga_levels$upper_sec,
+    higher_codes = .nga_levels$higher,
+    level_grades = upper_sec_grades,
+    fn = "process_UPSECCOMPL",
+    label = "upseccompl"
+  )
+}

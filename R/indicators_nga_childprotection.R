@@ -108,6 +108,77 @@ process_CHILDMARRIAGE <- function(wm) {
 }
 
 
+# Shared components of the two child labour definitions, per
+# define/MICS6 - 09 - PR.sps. Returns the filtered frame alongside the three
+# logical components so each indicator can combine them as its table does.
+.nga_child_labour_components <- function(fs, fn) {
+  fs <- standardize_columns(fs, "fs")
+
+  econ_vars <- c("CL1A", "CL1B", "CL1C", "CL1X")
+  chore_vars <- c(
+    "CL7", "CL9",
+    "CL11A", "CL11B", "CL11C", "CL11D", "CL11E", "CL11F", "CL11X"
+  )
+  hazard_vars <- c(
+    "CL4", "CL5", "CL6A", "CL6B", "CL6C", "CL6D", "CL6E", "CL6X"
+  )
+
+  required <- c(
+    "cluster", "householdID", "weight", "strata",
+    "FS17", "CB3", "CL3", "CL8", "CL10", "CL13",
+    econ_vars, chore_vars, hazard_vars
+  )
+  .require_columns(fs, required, fn)
+
+  # Denominator: children age 5-17 with a completed interview.
+  fs <- fs[.as_code(fs$FS17) %in% 1, , drop = FALSE]
+
+  age <- .as_code(fs$CB3)
+
+  # SPSS `any(1, CL1A, ...)` is true when any listed variable equals 1.
+  .any_yes <- function(vars) {
+    Reduce(`|`, lapply(vars, function(v) .as_code(fs[[v]]) %in% 1))
+  }
+
+  economic_activity <- .any_yes(econ_vars)
+  hh_chores <- .any_yes(chore_vars)
+  econ_hours <- .as_code(fs$CL3)
+
+  # eaMore: age-specific thresholds, each capped at CL3 < 97 to drop the
+  # 97/98/99 DK/missing codes.
+  ea_more <- dplyr::case_when(
+    age <= 11           ~ economic_activity & econ_hours >= 1  & econ_hours < 97,
+    age %in% c(12L:14L) ~ economic_activity & econ_hours >= 14 & econ_hours < 97,
+    age %in% c(15L:17L) ~ economic_activity & econ_hours >= 43 & econ_hours < 97,
+    TRUE ~ FALSE
+  )
+  ea_more[is.na(ea_more)] <- FALSE
+
+  # hhcMore: only computed for age 5-14 (`do if (CB3 <= 14)`); children age
+  # 15-17 contribute 0 via `sum(0, hhc21less)`. The 97/98/99 codes are recoded
+  # to 0 before the >= 21 comparison.
+  .chore_hours <- function(v) {
+    x <- .as_code(fs[[v]])
+    x[x %in% c(97, 98, 99)] <- 0
+    x
+  }
+
+  # SPSS sum() ignores missing operands.
+  chore_hours <- rowSums(
+    cbind(.chore_hours("CL8"), .chore_hours("CL10"), .chore_hours("CL13")),
+    na.rm = TRUE
+  )
+
+  hhc_more <- age <= 14 & hh_chores & chore_hours >= 21
+  hhc_more[is.na(hhc_more)] <- FALSE
+
+  # hazardConditions = any(1, CL4, CL5, CL6A ... CL6X).
+  hazard <- .any_yes(hazard_vars)
+
+  list(fs = fs, ea_more = ea_more, hhc_more = hhc_more, hazard = hazard)
+}
+
+
 #' Child labour, children age 5-17 (Nigeria)
 #'
 #' Percentage of children age 5-17 years engaged in child labour during the
@@ -138,70 +209,50 @@ process_CHILDMARRIAGE <- function(wm) {
 #'   (\code{"childlabour"}).
 #' @export
 process_CHILDLABOUR <- function(fs) {
-  fs <- standardize_columns(fs, "fs")
-
-  econ_vars <- c("CL1A", "CL1B", "CL1C", "CL1X")
-  chore_vars <- c(
-    "CL7", "CL9",
-    "CL11A", "CL11B", "CL11C", "CL11D", "CL11E", "CL11F", "CL11X"
-  )
-
-  required <- c(
-    "cluster", "householdID", "weight", "strata",
-    "FS17", "CB3", "CL3", "CL8", "CL10", "CL13",
-    econ_vars, chore_vars
-  )
-  .require_columns(fs, required, "process_CHILDLABOUR")
-
-  # Denominator: children age 5-17 with a completed interview.
-  fs <- fs[.as_code(fs$FS17) %in% 1, , drop = FALSE]
-
-  age <- .as_code(fs$CB3)
-
-  # SPSS `any(1, CL1A, CL1B, CL1C, CL1X)` is true when any listed variable
-  # equals 1.
-  .any_yes <- function(vars) {
-    hits <- lapply(vars, function(v) .as_code(fs[[v]]) %in% 1)
-    Reduce(`|`, hits)
-  }
-
-  economic_activity <- .any_yes(econ_vars)
-  hh_chores <- .any_yes(chore_vars)
-
-  econ_hours <- .as_code(fs$CL3)
-
-  # eaMore: age-specific thresholds, each capped at CL3 < 97 to drop the
-  # 97/98/99 DK/missing codes.
-  ea_more <- dplyr::case_when(
-    age <= 11            ~ economic_activity & econ_hours >= 1  & econ_hours < 97,
-    age %in% c(12L:14L)  ~ economic_activity & econ_hours >= 14 & econ_hours < 97,
-    age %in% c(15L:17L)  ~ economic_activity & econ_hours >= 43 & econ_hours < 97,
-    TRUE ~ FALSE
-  )
-  ea_more[is.na(ea_more)] <- FALSE
-
-  # hhcMore: only computed for age 5-14 (`do if (CB3 <= 14)`); children age
-  # 15-17 contribute 0 via `sum(0, hhc21less)`. The 97/98/99 codes are recoded
-  # to 0 before the >= 21 comparison.
-  .chore_hours <- function(v) {
-    x <- .as_code(fs[[v]])
-    x[x %in% c(97, 98, 99)] <- 0
-    x
-  }
-
-  # SPSS sum() ignores missing operands.
-  chore_hours <- rowSums(
-    cbind(.chore_hours("CL8"), .chore_hours("CL10"), .chore_hours("CL13")),
-    na.rm = TRUE
-  )
-
-  hhc_more <- age <= 14 & hh_chores & chore_hours >= 21
-  hhc_more[is.na(hhc_more)] <- FALSE
+  parts <- .nga_child_labour_components(fs, "process_CHILDLABOUR")
 
   # childLabor = maximum(0, eaMore, hhcMore).
-  fs$value <- as.integer(ea_more | hhc_more)
+  parts$fs$value <- as.integer(parts$ea_more | parts$hhc_more)
 
-  .indicator_result(fs, "childlabour")
+  .indicator_result(parts$fs, "childlabour")
+}
+
+
+#' Child labour including hazardous conditions, children age 5-17 (Nigeria)
+#'
+#' Percentage of children age 5-17 years engaged in economic activities or
+#' household chores above the age-specific thresholds, \emph{or} working under
+#' hazardous conditions.
+#'
+#' Translated from the \code{includeHaz} recode in
+#' \code{define/MICS6 - 09 - PR.sps}:
+#' \code{maximum(0, eaMore, hhcMore, hazardConditions)}, where
+#' \code{hazardConditions = any(1, CL4, CL5, CL6A, CL6B, CL6C, CL6D, CL6E,
+#' CL6X)}.
+#'
+#' This is the wider of the two child labour definitions. The narrower one,
+#' \code{\link{process_CHILDLABOUR}()}, drops hazardous conditions and is the
+#' basis for SDG indicator 8.7.1; see the note in that function.
+#'
+#' This indicator is Nigeria-only; it expects the Nigeria MICS6 (2021)
+#' children age 5-17 recode variable names.
+#'
+#' @param fs A children age 5-17 data.frame (fs.sav) from Nigeria MICS6.
+#'
+#' @return A data.frame with columns
+#'   \code{cluster}, \code{householdID}, \code{weight}, \code{strata},
+#'   \code{value} (1 = child labour including hazardous conditions), and
+#'   \code{indicator} (\code{"childlabourhaz"}).
+#' @export
+process_CHILDLABOURHAZ <- function(fs) {
+  parts <- .nga_child_labour_components(fs, "process_CHILDLABOURHAZ")
+
+  # includeHaz = maximum(0, eaMore, hhcMore, hazardConditions).
+  parts$fs$value <- as.integer(
+    parts$ea_more | parts$hhc_more | parts$hazard
+  )
+
+  .indicator_result(parts$fs, "childlabourhaz")
 }
 
 

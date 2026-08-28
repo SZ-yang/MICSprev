@@ -111,7 +111,21 @@ standardize_columns <- function(df, type) {
   HEALTHINS   = "nigeria",
   SOCTRANSFER = "nigeria",
   BANKACCT    = "nigeria",
-  BORROWED    = "nigeria"
+  BORROWED    = "nigeria",
+
+  # --- Nigeria-only: Priority two ---
+  # Micronutrient powders are absent by design: Nigeria MICS6 (2021) has no
+  # MNP item. See R/indicators_nga_nutrition.R.
+  CHILDLABOURHAZ = "nigeria",
+  NETINTAKE      = "nigeria",
+  PRIMARYCOMPL   = "nigeria",
+  LOWSECCOMPL    = "nigeria",
+  UPSECCOMPL     = "nigeria",
+  WATERSUFF      = "nigeria",
+  MENSTRUAL      = "nigeria",
+  APPROPBF       = "nigeria",
+  MINACCEPTDIET  = "nigeria",
+  FOODINSEC      = "nigeria"
 )
 
 #' Supported indicators and the countries they may be run on
@@ -216,6 +230,10 @@ indicator_countries <- function() {
 #'   \item Social policy: \code{HANDWASH}, \code{FUNCDIFF517},
 #'     \code{FUNCDIFF217}, \code{HEALTHINS}, \code{SOCTRANSFER},
 #'     \code{BANKACCT}, \code{BORROWED}
+#'   \item Priority two: \code{CHILDLABOURHAZ}, \code{NETINTAKE},
+#'     \code{PRIMARYCOMPL}, \code{LOWSECCOMPL}, \code{UPSECCOMPL},
+#'     \code{WATERSUFF}, \code{MENSTRUAL}, \code{APPROPBF},
+#'     \code{MINACCEPTDIET}, \code{FOODINSEC}
 #' }
 #'
 #' Call \code{indicator_countries()} for the authoritative, always-current
@@ -295,7 +313,19 @@ process_indicator <- function(data, indicator, country = NULL, ...) {
     # Multi-recode: hl arrives through `...`.
     "SOCTRANSFER" = process_SOCTRANSFER(data, ...),
     "BANKACCT"    = process_BANKACCT(data),
-    "BORROWED"    = process_BORROWED(data, ...)
+    "BORROWED"    = process_BORROWED(data, ...),
+
+    # --- Nigeria-only: Priority two ---
+    "CHILDLABOURHAZ" = process_CHILDLABOURHAZ(data),
+    "NETINTAKE"      = process_NETINTAKE(data, ...),
+    "PRIMARYCOMPL"   = process_PRIMARYCOMPL(data, ...),
+    "LOWSECCOMPL"    = process_LOWSECCOMPL(data, ...),
+    "UPSECCOMPL"     = process_UPSECCOMPL(data, ...),
+    "WATERSUFF"      = process_WATERSUFF(data),
+    "MENSTRUAL"      = process_MENSTRUAL(data),
+    "APPROPBF"       = process_APPROPBF(data),
+    "MINACCEPTDIET"  = process_MINACCEPTDIET(data),
+    "FOODINSEC"      = process_FOODINSEC(data, ...)
   )
 
   out

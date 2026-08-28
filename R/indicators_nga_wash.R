@@ -208,3 +208,81 @@ process_OPENDEF <- function(hh) {
 
   .indicator_result(hh, "opendef")
 }
+
+
+# ---------------------------------------------------------------------------
+# Priority two
+# ---------------------------------------------------------------------------
+
+#' Drinking water available in sufficient quantities (Nigeria)
+#'
+#' Percentage of the household population with drinking water available in
+#' sufficient quantities, i.e. in households reporting no occasion in the last
+#' month when water was insufficient.
+#'
+#' Translated from \code{MICS6 - 10 - WS.1.5.sps} (\code{sufficentwater}), where
+#' the indicator is \code{WS7 = 2} - a "No" to whether there was any time in
+#' the last month without sufficient water.
+#'
+#' The denominator is the household \emph{population}: the household weight is
+#' multiplied by household size (\code{HH48}), as the source table does.
+#'
+#' This indicator is Nigeria-only; it expects the Nigeria MICS6 (2021)
+#' household recode variable names.
+#'
+#' @param hh A household data.frame (hh.sav) from Nigeria MICS6.
+#'
+#' @return A data.frame with the standard six indicator columns;
+#'   \code{indicator} is \code{"watersuff"}.
+#' @export
+process_WATERSUFF <- function(hh) {
+  hh <- .nga_hh_population_denominator(hh, "process_WATERSUFF", "WS7")
+
+  # sufficentwater = 100 if WS7 = 2.
+  hh$value <- as.integer(.as_code(hh$WS7) %in% 2)
+
+  .indicator_result(hh, "watersuff")
+}
+
+
+#' Menstrual hygiene management, women age 15-49 (Nigeria)
+#'
+#' Percentage of women age 15-49 years who used appropriate menstrual hygiene
+#' materials and had a private place to wash and change while at home.
+#'
+#' Translated from \code{MICS6 - 10 - WS.4.1.sps} (\code{materialprivateplace};
+#' MICS indicator WS.10). The numerator requires both a private place
+#' (\code{UN17 = 1}) and use of appropriate materials (\code{UN18 = 1}).
+#'
+#' The denominator is women who completed the interview and answered the
+#' menstrual hygiene module, reproducing
+#' \code{select if (not(sysmis(UN16)))} - women who did not menstruate in the
+#' last 12 months are not asked and are excluded rather than counted as 0.
+#'
+#' This indicator is Nigeria-only; it expects the Nigeria MICS6 (2021) women's
+#' recode variable names.
+#'
+#' @param wm A women's data.frame (wm.sav) from Nigeria MICS6.
+#'
+#' @return A data.frame with the standard six indicator columns;
+#'   \code{indicator} is \code{"menstrual"}.
+#' @export
+process_MENSTRUAL <- function(wm) {
+  wm <- standardize_columns(wm, "wm")
+
+  required <- c(
+    "cluster", "householdID", "weight", "strata", "WM17", "UN16", "UN17", "UN18"
+  )
+  .require_columns(wm, required, "process_MENSTRUAL")
+
+  # select if (WM17 = 1). select if (not(sysmis(UN16))).
+  keep <- .as_code(wm$WM17) %in% 1 & !is.na(.as_code(wm$UN16))
+  wm <- wm[keep, , drop = FALSE]
+
+  # materialprivateplace = 100 if (privateplace = 100 and UN18 = 1).
+  wm$value <- as.integer(
+    .as_code(wm$UN17) %in% 1 & .as_code(wm$UN18) %in% 1
+  )
+
+  .indicator_result(wm, "menstrual")
+}
