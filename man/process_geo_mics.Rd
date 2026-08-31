@@ -23,7 +23,7 @@ Users provide GPS shapefile; this constructs cluster/admin objects
 needed by surveyPrev and SUMMER.
 }
 \details{
-Supported (currently, excluding Malawi):
+Supported:
 \itemize{
 \item Honduras 2019
 \item Nigeria 2016
@@ -35,5 +35,6 @@ Supported (currently, excluding Malawi):
 \item Madagascar 2018
 \item Zimbabwe 2019
 \item Thailand 2022
+\item Malawi 2019-20 (use year = 2019 or 2020)
 }
 }

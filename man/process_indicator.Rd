@@ -4,13 +4,22 @@
 \alias{process_indicator}
 \title{Process a supported MICS indicator into a standardized dataset}
 \usage{
-process_indicator(data, indicator)
+process_indicator(data, indicator, country = NULL, ...)
 }
 \arguments{
-\item{data}{A raw MICS survey data.frame.}
+\item{data}{A raw MICS survey data.frame. The recode file required depends
+on the indicator (see the individual \code{process_*()} functions).}
 
-\item{indicator}{Indicator name. Can be supplied as
-\code{NMR}, \code{ANC}, \code{DTP3}, or as a character string.}
+\item{indicator}{Indicator name, supplied bare (e.g. \code{NMR}) or as a
+character string.}
+
+\item{country}{Character country name, e.g. \code{"Nigeria"}. Required for
+country-specific indicators; ignored for country-agnostic ones. Matching
+is case- and whitespace-insensitive.}
+
+\item{...}{Additional recode data.frames for indicators that span more than
+one recode file. Passed on to the underlying \code{process_*()} function,
+which names them; supplying them for a single-file indicator is an error.}
 }
 \value{
 A processed data.frame with columns
@@ -18,6 +27,40 @@ A processed data.frame with columns
 \code{value}, and \code{indicator}.
 }
 \description{
-Unified interface for processing supported indicators:
-\code{NMR}, \code{ANC}, and \code{DTP3}.
+Unified interface for processing supported indicators. \code{NMR},
+\code{ANC} and \code{DTP3} are country-agnostic; every other indicator is
+country-specific and requires \code{country} to be supplied. See
+\code{\link{indicator_countries}()} for the registry.
+}
+\details{
+Nigeria-only indicators (Nigeria MICS6, 2021), by sector:
+\itemize{
+\item Health: \code{ANC1}, \code{SBA}, \code{PNCNB}, \code{PNCMOM},
+\code{PENTA1}
+\item Child protection: \code{BIRTHREG}, \code{CHILDMARRIAGE},
+\code{CHILDLABOUR}, \code{FGMDAUGHTER}
+\item Education: \code{OOSPRIMARY}, \code{OOSSECONDARY}, \code{READING},
+\code{MATH}
+\item Nutrition: \code{EBF}, \code{VITA}
+\item WASH: \code{BASICWATER}, \code{BASICSAN}, \code{OPENDEF}
+\item Social policy: \code{HANDWASH}, \code{FUNCDIFF517},
+\code{FUNCDIFF217}, \code{HEALTHINS}, \code{SOCTRANSFER},
+\code{BANKACCT}, \code{BORROWED}
+\item Priority two: \code{CHILDLABOURHAZ}, \code{NETINTAKE},
+\code{PRIMARYCOMPL}, \code{LOWSECCOMPL}, \code{UPSECCOMPL},
+\code{WATERSUFF}, \code{MENSTRUAL}, \code{APPROPBF},
+\code{MINACCEPTDIET}, \code{FOODINSEC}
+}
+
+Call \code{indicator_countries()} for the authoritative, always-current
+list.
+
+Most indicators are derived from a single recode file, passed as
+\code{data}. A few span more than one; those take their additional recodes
+through \code{...}. \code{FGMDAUGHTER} needs all three of \code{fg.sav}
+(as \code{data}), \code{bh.sav} and \code{wm.sav}:
+
+\preformatted{
+process_indicator(fg, "FGMDAUGHTER", country = "Nigeria", bh = bh, wm = wm)
+}
 }

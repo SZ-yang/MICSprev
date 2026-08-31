@@ -3,8 +3,11 @@
 #' Harmonizes basic variables (cluster, household, strata, weight)
 #' across different MICS survey files.
 #'
-#' @param df A data.frame from a MICS survey (bh, wm, or ch).
-#' @param type Character string: one of "bh", "wm", or "ch".
+#' @param df A data.frame from a MICS survey recode file.
+#' @param type Character string identifying the recode file: one of
+#'   \code{"bh"} (birth history), \code{"wm"} (women), \code{"ch"} (children
+#'   under 5), \code{"hh"} (households), \code{"hl"} (household listing),
+#'   \code{"fs"} (children age 5-17) or \code{"mn"} (men).
 #'
 #' @return The modified data.frame with standardized columns:
 #' \code{cluster}, \code{householdID}, \code{strata}, and \code{weight}
@@ -33,16 +36,159 @@ standardize_columns <- function(df, type) {
   }
 
   # ---- Weights ----
-  if (type %in% c("bh", "wm") && "wmweight" %in% names(df)) df$weight <- df$wmweight
-  if (type == "ch" && "chweight" %in% names(df)) df$weight <- df$chweight
+  # FLAG: Nigeria MICS6 (2021) ships two weight sets because the release merges
+  # the MICS and NICS samples (Readme_Nigeria_MICS6: "the appropriate data files
+  # have two sets of weights ... one for MICS and another one for MICS and NICS
+  # combined"). The unsuffixed names (hhweight/chweight/...) are the combined
+  # MICS-NICS weights; the *MICS-suffixed names are MICS-only. We take the
+  # unsuffixed names throughout, matching both the standard MICS6 tabulation
+  # syntax and the pre-existing behaviour of process_DTP3()/process_NMR().
+  weight_var <- switch(
+    type,
+    "bh" = "wmweight",
+    "wm" = "wmweight",
+    "ch" = "chweight",
+    "hh" = "hhweight",
+    "hl" = "hhweight",
+    "fs" = "fsweight",
+    "mn" = "mnweight",
+    NULL
+  )
+
+  if (!is.null(weight_var) && weight_var %in% names(df)) df$weight <- df[[weight_var]]
 
   df
 }
 
+# ---------------------------------------------------------------------------
+# Country gating
+# ---------------------------------------------------------------------------
+
+# Registry mapping each supported indicator to the countries it may be run on.
+# "all" means the indicator is country-agnostic (the three original indicators).
+# Anything else is a character vector of lowercase country names; callers must
+# then pass `country` explicitly to process_indicator().
+.indicator_countries <- list(
+  # --- country-agnostic (pre-existing) ---
+  NMR  = "all",
+  ANC  = "all",
+  DTP3 = "all",
+
+  # --- Nigeria-only: Health ---
+  ANC1    = "nigeria",
+  SBA     = "nigeria",
+  PNCNB   = "nigeria",
+  PNCMOM  = "nigeria",
+  PENTA1  = "nigeria",
+
+  # --- Nigeria-only: Child Protection ---
+  BIRTHREG      = "nigeria",
+  CHILDMARRIAGE = "nigeria",
+  CHILDLABOUR   = "nigeria",
+  FGMDAUGHTER   = "nigeria",
+
+  # --- Nigeria-only: Education ---
+  OOSPRIMARY   = "nigeria",
+  OOSSECONDARY = "nigeria",
+  READING      = "nigeria",
+  MATH         = "nigeria",
+
+  # --- Nigeria-only: Nutrition ---
+  # Stunting and severe wasting are absent by design: Nigeria MICS6 (2021)
+  # released no anthropometry. See R/indicators_nga_nutrition.R.
+  EBF  = "nigeria",
+  VITA = "nigeria",
+
+  # --- Nigeria-only: WASH ---
+  BASICWATER = "nigeria",
+  BASICSAN   = "nigeria",
+  OPENDEF    = "nigeria",
+
+  # --- Nigeria-only: Social Policy ---
+  HANDWASH    = "nigeria",
+  FUNCDIFF517 = "nigeria",
+  FUNCDIFF217 = "nigeria",
+  HEALTHINS   = "nigeria",
+  SOCTRANSFER = "nigeria",
+  BANKACCT    = "nigeria",
+  BORROWED    = "nigeria",
+
+  # --- Nigeria-only: Priority two ---
+  # Micronutrient powders are absent by design: Nigeria MICS6 (2021) has no
+  # MNP item. See R/indicators_nga_nutrition.R.
+  CHILDLABOURHAZ = "nigeria",
+  NETINTAKE      = "nigeria",
+  PRIMARYCOMPL   = "nigeria",
+  LOWSECCOMPL    = "nigeria",
+  UPSECCOMPL     = "nigeria",
+  WATERSUFF      = "nigeria",
+  MENSTRUAL      = "nigeria",
+  APPROPBF       = "nigeria",
+  MINACCEPTDIET  = "nigeria",
+  FOODINSEC      = "nigeria"
+)
+
+#' Supported indicators and the countries they may be run on
+#'
+#' Returns the indicator/country registry used to gate country-specific
+#' indicators. Indicators mapped to \code{"all"} are country-agnostic; every
+#' other indicator requires a matching \code{country} argument.
+#'
+#' @return A named list. Names are indicator codes; values are either the
+#'   string \code{"all"} or a character vector of lowercase country names.
+#' @export
+indicator_countries <- function() {
+  .indicator_countries
+}
+
+# Normalize a free-text country name to the registry's lowercase convention.
+.normalize_country <- function(country) {
+  if (is.null(country)) return(NULL)
+
+  country <- tolower(trimws(as.character(country)))
+  if (length(country) != 1L || is.na(country) || !nzchar(country)) return(NULL)
+
+  country
+}
+
+# Check an indicator against a country. `context` names the calling function so
+# the error message points at the right place.
+.check_indicator_country <- function(indicator_name, country, context) {
+  allowed <- .indicator_countries[[indicator_name]]
+
+  # Unregistered indicators are country-agnostic by default.
+  if (is.null(allowed) || identical(allowed, "all")) return(invisible(TRUE))
+
+  country <- .normalize_country(country)
+
+  if (is.null(country)) {
+    stop(
+      context, ": indicator `", indicator_name, "` is country-specific and ",
+      "requires `country`. Supported: ",
+      paste(allowed, collapse = ", "), ".",
+      call. = FALSE
+    )
+  }
+
+  if (!country %in% allowed) {
+    stop(
+      context, ": indicator `", indicator_name, "` is not supported for ",
+      "country `", country, "`. Supported: ",
+      paste(allowed, collapse = ", "), ".",
+      call. = FALSE
+    )
+  }
+
+  invisible(TRUE)
+}
+
 .normalize_indicator <- function(indicator) {
+  supported <- names(.indicator_countries)
+
   if (missing(indicator) || is.null(indicator)) {
     stop(
-      "process_indicator(): `indicator` must be one of NMR, ANC, or DTP3.",
+      "process_indicator(): `indicator` must be one of ",
+      paste(supported, collapse = ", "), ".",
       call. = FALSE
     )
   }
@@ -53,10 +199,10 @@ standardize_columns <- function(df, type) {
 
   indicator <- toupper(trimws(indicator))
 
-  if (!indicator %in% c("NMR", "ANC", "DTP3")) {
+  if (!indicator %in% supported) {
     stop(
       "process_indicator(): unsupported indicator `", indicator,
-      "`. Use one of NMR, ANC, or DTP3.",
+      "`. Use one of ", paste(supported, collapse = ", "), ".",
       call. = FALSE
     )
   }
@@ -66,25 +212,120 @@ standardize_columns <- function(df, type) {
 
 #' Process a supported MICS indicator into a standardized dataset
 #'
-#' Unified interface for processing supported indicators:
-#' \code{NMR}, \code{ANC}, and \code{DTP3}.
+#' Unified interface for processing supported indicators. \code{NMR},
+#' \code{ANC} and \code{DTP3} are country-agnostic; every other indicator is
+#' country-specific and requires \code{country} to be supplied. See
+#' \code{\link{indicator_countries}()} for the registry.
 #'
-#' @param data A raw MICS survey data.frame.
-#' @param indicator Indicator name. Can be supplied as
-#' \code{NMR}, \code{ANC}, \code{DTP3}, or as a character string.
+#' Nigeria-only indicators (Nigeria MICS6, 2021), by sector:
+#' \itemize{
+#'   \item Health: \code{ANC1}, \code{SBA}, \code{PNCNB}, \code{PNCMOM},
+#'     \code{PENTA1}
+#'   \item Child protection: \code{BIRTHREG}, \code{CHILDMARRIAGE},
+#'     \code{CHILDLABOUR}, \code{FGMDAUGHTER}
+#'   \item Education: \code{OOSPRIMARY}, \code{OOSSECONDARY}, \code{READING},
+#'     \code{MATH}
+#'   \item Nutrition: \code{EBF}, \code{VITA}
+#'   \item WASH: \code{BASICWATER}, \code{BASICSAN}, \code{OPENDEF}
+#'   \item Social policy: \code{HANDWASH}, \code{FUNCDIFF517},
+#'     \code{FUNCDIFF217}, \code{HEALTHINS}, \code{SOCTRANSFER},
+#'     \code{BANKACCT}, \code{BORROWED}
+#'   \item Priority two: \code{CHILDLABOURHAZ}, \code{NETINTAKE},
+#'     \code{PRIMARYCOMPL}, \code{LOWSECCOMPL}, \code{UPSECCOMPL},
+#'     \code{WATERSUFF}, \code{MENSTRUAL}, \code{APPROPBF},
+#'     \code{MINACCEPTDIET}, \code{FOODINSEC}
+#' }
+#'
+#' Call \code{indicator_countries()} for the authoritative, always-current
+#' list.
+#'
+#' Most indicators are derived from a single recode file, passed as
+#' \code{data}. A few span more than one; those take their additional recodes
+#' through \code{...}. \code{FGMDAUGHTER} needs all three of \code{fg.sav}
+#' (as \code{data}), \code{bh.sav} and \code{wm.sav}:
+#'
+#' \preformatted{
+#' process_indicator(fg, "FGMDAUGHTER", country = "Nigeria", bh = bh, wm = wm)
+#' }
+#'
+#' @param data A raw MICS survey data.frame. The recode file required depends
+#'   on the indicator (see the individual \code{process_*()} functions).
+#' @param indicator Indicator name, supplied bare (e.g. \code{NMR}) or as a
+#'   character string.
+#' @param country Character country name, e.g. \code{"Nigeria"}. Required for
+#'   country-specific indicators; ignored for country-agnostic ones. Matching
+#'   is case- and whitespace-insensitive.
+#' @param ... Additional recode data.frames for indicators that span more than
+#'   one recode file. Passed on to the underlying \code{process_*()} function,
+#'   which names them; supplying them for a single-file indicator is an error.
 #'
 #' @return A processed data.frame with columns
 #' \code{cluster}, \code{householdID}, \code{weight}, \code{strata},
 #' \code{value}, and \code{indicator}.
 #' @export
-process_indicator <- function(data, indicator) {
+process_indicator <- function(data, indicator, country = NULL, ...) {
   indicator_name <- .normalize_indicator(indicator)
+  .check_indicator_country(indicator_name, country, "process_indicator()")
 
   out <- switch(
     indicator_name,
-    "NMR"  = process_NMR(data),
-    "ANC"  = process_ANC(data),
-    "DTP3" = process_DTP3(data)
+    "NMR"    = process_NMR(data),
+    "ANC"    = process_ANC(data),
+    "DTP3"   = process_DTP3(data),
+
+    # --- Nigeria-only: Health ---
+    "ANC1"   = process_ANC1(data),
+    "SBA"    = process_SBA(data),
+    "PNCNB"  = process_PNCNB(data),
+    "PNCMOM" = process_PNCMOM(data),
+    "PENTA1" = process_PENTA1(data),
+
+    # --- Nigeria-only: Child Protection ---
+    "BIRTHREG"      = process_BIRTHREG(data),
+    "CHILDMARRIAGE" = process_CHILDMARRIAGE(data),
+    "CHILDLABOUR"   = process_CHILDLABOUR(data),
+    # Multi-recode: bh and wm arrive through `...`.
+    "FGMDAUGHTER"   = process_FGMDAUGHTER(data, ...),
+
+    # --- Nigeria-only: Education ---
+    # `...` carries the country-specific school-structure and reading-task
+    # parameters documented on each function.
+    "OOSPRIMARY"   = process_OOSPRIMARY(data, ...),
+    "OOSSECONDARY" = process_OOSSECONDARY(data, ...),
+    "READING"      = process_READING(data, ...),
+    "MATH"         = process_MATH(data),
+
+    # --- Nigeria-only: Nutrition ---
+    "EBF"  = process_EBF(data),
+    "VITA" = process_VITA(data, ...),
+
+    # --- Nigeria-only: WASH ---
+    "BASICWATER" = process_BASICWATER(data),
+    "BASICSAN"   = process_BASICSAN(data),
+    "OPENDEF"    = process_OPENDEF(data),
+
+    # --- Nigeria-only: Social Policy ---
+    "HANDWASH"    = process_HANDWASH(data),
+    "FUNCDIFF517" = process_FUNCDIFF517(data),
+    # Multi-recode: ch arrives through `...`.
+    "FUNCDIFF217" = process_FUNCDIFF217(data, ...),
+    "HEALTHINS"   = process_HEALTHINS(data),
+    # Multi-recode: hl arrives through `...`.
+    "SOCTRANSFER" = process_SOCTRANSFER(data, ...),
+    "BANKACCT"    = process_BANKACCT(data),
+    "BORROWED"    = process_BORROWED(data, ...),
+
+    # --- Nigeria-only: Priority two ---
+    "CHILDLABOURHAZ" = process_CHILDLABOURHAZ(data),
+    "NETINTAKE"      = process_NETINTAKE(data, ...),
+    "PRIMARYCOMPL"   = process_PRIMARYCOMPL(data, ...),
+    "LOWSECCOMPL"    = process_LOWSECCOMPL(data, ...),
+    "UPSECCOMPL"     = process_UPSECCOMPL(data, ...),
+    "WATERSUFF"      = process_WATERSUFF(data),
+    "MENSTRUAL"      = process_MENSTRUAL(data),
+    "APPROPBF"       = process_APPROPBF(data),
+    "MINACCEPTDIET"  = process_MINACCEPTDIET(data),
+    "FOODINSEC"      = process_FOODINSEC(data, ...)
   )
 
   out

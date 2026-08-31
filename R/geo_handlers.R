@@ -149,6 +149,10 @@ process_geo_mwi_2019 <- function(gps_path, out_path = NULL) {
     )
   )
 
+  # Stamp the country so run_indicator_models() can enforce the
+  # indicator/country registry on country-specific indicators.
+  res$country <- "malawi"
+
   .save_geo_result(res, out_path)
   res
 }
@@ -172,6 +176,10 @@ process_geo_hnd_2019 <- function(gps_path, out_path = NULL) {
   infos <- .build_cluster_admin_info(geo, admin1, admin2, by_adm2 = "NAME_2", map = TRUE)
 
   res <- c(infos, list(admin0 = admin0, admin1 = admin1, admin2 = admin2, geo = geo))
+  # Stamp the country so run_indicator_models() can enforce the
+  # indicator/country registry on country-specific indicators.
+  res$country <- "honduras"
+
   .save_geo_result(res, out_path)
   res
 }
@@ -197,6 +205,10 @@ process_geo_nga_2021 <- function(gps_path, out_path = NULL) {
   infos <- .build_cluster_admin_info(geo, admin1, admin2, by_adm2 = "NAME_2", map = TRUE)
 
   res <- c(infos, list(admin0 = admin0, admin1 = admin1, admin2 = admin2, geo = geo))
+  # Stamp the country so run_indicator_models() can enforce the
+  # indicator/country registry on country-specific indicators.
+  res$country <- "nigeria"
+
   .save_geo_result(res, out_path)
   res
 }
@@ -242,6 +254,10 @@ process_geo_nga_2016 <- function(gps_path, out_path = NULL) {
       geo = geo
     )
   )
+
+  # Stamp the country so run_indicator_models() can enforce the
+  # indicator/country registry on country-specific indicators.
+  res$country <- "nigeria"
 
   .save_geo_result(res, out_path)
 
@@ -294,6 +310,10 @@ process_geo_gha_2017 <- function(gps_path, out_path = NULL) {
   infos <- .build_cluster_admin_info(geo, admin1, admin2, by_adm2 = "NAME_2", map = TRUE)
 
   res <- c(infos, list(admin0 = admin0, admin1 = admin1, admin2 = admin2, geo = geo))
+  # Stamp the country so run_indicator_models() can enforce the
+  # indicator/country registry on country-specific indicators.
+  res$country <- "ghana"
+
   .save_geo_result(res, out_path)
   res
 }
@@ -319,6 +339,10 @@ process_geo_lao_2017 <- function(gps_path, out_path = NULL) {
   infos <- .build_cluster_admin_info(geo, admin1, admin2, by_adm2 = "NAME_2", map = TRUE)
 
   res <- c(infos, list(admin0 = admin0, admin1 = admin1, admin2 = admin2, geo = geo))
+  # Stamp the country so run_indicator_models() can enforce the
+  # indicator/country registry on country-specific indicators.
+  res$country <- "lao pdr"
+
   .save_geo_result(res, out_path)
   res
 }
@@ -343,6 +367,10 @@ process_geo_gmb_2018 <- function(gps_path, out_path = NULL) {
   infos <- .build_cluster_admin_info(geo, admin1, admin2, by_adm2 = "NAME_2", map = TRUE)
 
   res <- c(infos, list(admin0 = admin0, admin1 = admin1, admin2 = admin2, geo = geo))
+  # Stamp the country so run_indicator_models() can enforce the
+  # indicator/country registry on country-specific indicators.
+  res$country <- "gambia"
+
   .save_geo_result(res, out_path)
   res
 }
@@ -401,6 +429,10 @@ process_geo_sle_2017 <- function(gps_path, out_path = NULL) {
   infos <- .build_cluster_admin_info(geo, admin1, admin2, by_adm2 = "NAME_2", map = TRUE)
 
   res <- c(infos, list(admin0 = admin0, admin1 = admin1, admin2 = admin2, geo = geo))
+  # Stamp the country so run_indicator_models() can enforce the
+  # indicator/country registry on country-specific indicators.
+  res$country <- "sierra leone"
+
   .save_geo_result(res, out_path)
   res
 }
@@ -425,6 +457,10 @@ process_geo_mdg_2018 <- function(gps_path, out_path = NULL) {
   infos <- .build_cluster_admin_info(geo, admin1, admin2, by_adm2 = "NAME_2", map = TRUE)
 
   res <- c(infos, list(admin0 = admin0, admin1 = admin1, admin2 = admin2, geo = geo))
+  # Stamp the country so run_indicator_models() can enforce the
+  # indicator/country registry on country-specific indicators.
+  res$country <- "madagascar"
+
   .save_geo_result(res, out_path)
   res
 }
@@ -449,6 +485,10 @@ process_geo_zwe_2019 <- function(gps_path, out_path = NULL) {
   infos <- .build_cluster_admin_info(geo, admin1, admin2, by_adm2 = "NAME_2", map = TRUE)
 
   res <- c(infos, list(admin0 = admin0, admin1 = admin1, admin2 = admin2, geo = geo))
+  # Stamp the country so run_indicator_models() can enforce the
+  # indicator/country registry on country-specific indicators.
+  res$country <- "zimbabwe"
+
   .save_geo_result(res, out_path)
   res
 }
@@ -532,6 +572,10 @@ process_geo_tha_2022 <- function(gps_path, out_path = NULL) {
   geo_objects$geo <- geo
 
   res <- c(infos, geo_objects)
+
+  # Stamp the country so run_indicator_models() can enforce the
+  # indicator/country registry on country-specific indicators.
+  res$country <- "thailand"
 
   .save_geo_result(res, out_path)
   res

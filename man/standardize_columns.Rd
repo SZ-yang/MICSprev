@@ -7,9 +7,12 @@
 standardize_columns(df, type)
 }
 \arguments{
-\item{df}{A data.frame from a MICS survey (bh, wm, or ch).}
+\item{df}{A data.frame from a MICS survey recode file.}
 
-\item{type}{Character string: one of "bh", "wm", or "ch".}
+\item{type}{Character string identifying the recode file: one of
+\code{"bh"} (birth history), \code{"wm"} (women), \code{"ch"} (children
+under 5), \code{"hh"} (households), \code{"hl"} (household listing),
+\code{"fs"} (children age 5-17) or \code{"mn"} (men).}
 }
 \value{
 The modified data.frame with standardized columns:
